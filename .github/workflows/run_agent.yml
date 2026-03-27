@@ -42,7 +42,7 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
-        run: python swing_trading_agent.py
+        run: python swing_trading_agent_us.py
 
       - name: Save trade files
         uses: actions/cache@v4
