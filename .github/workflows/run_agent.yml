@@ -1,0 +1,53 @@
+name: Swing Trading Agent
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Restore trade files from cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            open_trades.csv
+            trade_log.csv
+          key: trade-data-${{ github.run_id }}
+          restore-keys: |
+            trade-data-
+
+      - name: Run trading agent
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: python swing_trading_agent.py
+
+      - name: Save trade files
+        uses: actions/cache@v4
+        with:
+          path: |
+            open_trades.csv
+            trade_log.csv
+          key: trade-data-${{ github.run_id }}
