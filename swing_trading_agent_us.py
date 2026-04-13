@@ -70,24 +70,36 @@ def sector_is_strong(etf_symbol):
 # EARNINGS DATE FILTER (unchanged)
 # =========================================
 
+ETFS = {
+    "SMH","SOXX","ITA","XAR","TAN","ICLN","URA","URNM",
+    "ARKX","QTUM","XBI","XLU","XLI","GLD","IAU","SLV","COPX"
+}
+
 def is_near_earnings(symbol, days=5):
+    if symbol in ETFS:
+        return False
     try:
         ticker = yf.Ticker(symbol)
         cal = ticker.calendar
-        if cal is None or cal.empty:
+        if not cal:
             return False
-        if 'Earnings Date' in cal.index:
-            earn_date = cal.loc['Earnings Date'].iloc[0]
-            if pd.isnull(earn_date):
+        # yfinance now returns a dict — handle both dict and DataFrame
+        if isinstance(cal, dict):
+            earn_dates = cal.get('Earnings Date', [])
+            if not earn_dates:
                 return False
-            earn_date = pd.Timestamp(earn_date).date()
-            today = datetime.now().date()
-            diff = abs((earn_date - today).days)
-            if diff <= days:
-                print(f"⚠️ {symbol} earnings in {diff} days — skipping")
-                return True
-    except Exception as e:
-        print(f"⚠️ Earnings check failed for {symbol}: {e}")
+            earn_date = pd.Timestamp(earn_dates[0]).date()
+        else:
+            if 'Earnings Date' not in cal.index:
+                return False
+            earn_date = pd.Timestamp(cal.loc['Earnings Date'].iloc[0]).date()
+        today = datetime.now().date()
+        diff = abs((earn_date - today).days)
+        if diff <= days:
+            print(f"⚠️ {symbol} earnings in {diff} days — skipping")
+            return True
+    except Exception:
+        pass  # silently skip — don't spam the logs
     return False
 
 # =========================================
