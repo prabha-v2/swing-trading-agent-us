@@ -264,6 +264,7 @@ stocks = [
     "SMH", "SOXX", "ITA", "XAR",
     "GLD", "IAU", "SLV", "COPX", "URA", "URNM",
     "ALB", "SQM",
+    "RKLB", "ASTS", "LUNR", "GE",
 ]
 
 # =========================================
