@@ -1,9 +1,34 @@
 name: Swing Trading Agent
 
 on:
+  # -------------------------------------------------------
+  # US Market hours schedule (all times in UTC)
+  # Daylight Saving active (Mar–Nov):
+  #   US market = 13:30–20:00 UTC = 7:00 PM–1:30 AM IST
+  #   We start 1hr early at 12:30 UTC = 6:00 PM IST
+  #   We stop at market close 20:00 UTC = 1:30 AM IST
+  #
+  # Every 30 mins from 12:30 UTC to 20:00 UTC, Mon–Fri
+  # -------------------------------------------------------
   schedule:
-    - cron: '*/30 * * * *'
-  workflow_dispatch:
+    - cron: '30 12 * * 1-5'
+    - cron: '0  13 * * 1-5'
+    - cron: '30 13 * * 1-5'
+    - cron: '0  14 * * 1-5'
+    - cron: '30 14 * * 1-5'
+    - cron: '0  15 * * 1-5'
+    - cron: '30 15 * * 1-5'
+    - cron: '0  16 * * 1-5'
+    - cron: '30 16 * * 1-5'
+    - cron: '0  17 * * 1-5'
+    - cron: '30 17 * * 1-5'
+    - cron: '0  18 * * 1-5'
+    - cron: '30 18 * * 1-5'
+    - cron: '0  19 * * 1-5'
+    - cron: '30 19 * * 1-5'
+    - cron: '0  20 * * 1-5'
+
+  workflow_dispatch:   # keep manual trigger for testing
 
 jobs:
   run-agent:
@@ -28,26 +53,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Restore trade files from cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            open_trades.csv
-            trade_log.csv
-          key: trade-data-${{ github.run_id }}
-          restore-keys: |
-            trade-data-
-
       - name: Run trading agent
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: python swing_trading_agent_us.py
-
-      - name: Save trade files
-        uses: actions/cache@v4
-        with:
-          path: |
-            open_trades.csv
-            trade_log.csv
-          key: trade-data-${{ github.run_id }}
