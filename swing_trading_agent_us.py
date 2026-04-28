@@ -11,12 +11,13 @@ from datetime import datetime
 # =========================================
 
 ACCOUNT_SIZE    = 30000
-RISK_PER_TRADE  = 0.01         # 1% risk = $300 per trade
+RISK_PER_TRADE  = 0.01
 RR_RATIO        = 2.5
 MAX_ATR_STOP    = 3.0
 MAX_POSITION    = 500
-SCORE_THRESHOLD = 18           # Raised for professional quality
+SCORE_THRESHOLD = 18
 TOP_PICKS       = 5
+MAX_PER_SECTOR  = 2            # correlation filter — max 2 picks per sector
 
 TELEGRAM_TOKEN  = os.environ.get("TELEGRAM_TOKEN", "")
 CHAT_ID         = os.environ.get("CHAT_ID", "")
@@ -35,20 +36,10 @@ def send_telegram(msg):
         print(f"⚠️ Telegram failed: {e}")
 
 # =========================================
-# PROFESSIONAL LAYER 1
-# MARKET BREADTH CHECK
-# Checks % of S&P 500 stocks above 50-day MA
-# Professionals never trade when breadth is weak
+# MARKET BREADTH
 # =========================================
 
 def get_market_breadth():
-    """
-    Downloads a sample of 50 S&P 500 stocks
-    and checks what % are above their 50-day MA.
-    > 60% = healthy market (green light)
-    40-60% = mixed (proceed with caution)
-    < 40% = weak breadth (avoid new longs)
-    """
     sp500_sample = [
         "AAPL","MSFT","NVDA","AMZN","META","GOOGL","BRK-B","LLY","JPM","V",
         "XOM","UNH","MA","JNJ","PG","HD","MRK","ABBV","CVX","KO",
@@ -72,187 +63,102 @@ def get_market_breadth():
             time.sleep(0.3)
         except Exception:
             continue
-
     if total == 0:
-        return 50  # neutral if no data
+        return 50
     pct = round((above_50 / total) * 100, 1)
-    print(f"Market Breadth: {above_50}/{total} stocks above EMA50 = {pct}%")
+    print(f"Market Breadth: {above_50}/{total} above EMA50 = {pct}%")
     return pct
 
 # =========================================
-# PROFESSIONAL LAYER 2
-# SECTOR ROTATION DETECTOR
-# Checks if money is flowing INTO the sector
-# RIGHT NOW (not just over the past year)
+# SECTOR ROTATION
 # =========================================
 
 def get_sector_rotation():
-    """
-    Checks 1-week and 1-month performance of
-    all major sector ETFs to find which sectors
-    are seeing active money rotation RIGHT NOW.
-    Returns a set of currently hot sector ETFs.
-    """
     sector_etfs = {
-        "XLK": "Technology",
-        "XLF": "Financials",
-        "XLE": "Energy",
-        "XLV": "Healthcare",
-        "XLI": "Industrials",
-        "XLU": "Utilities",
-        "XLB": "Materials",
-        "XLRE":"Real Estate",
-        "XLY": "Consumer Disc",
-        "XLP": "Consumer Staples",
-        "XLC": "Communication",
-        "SMH": "Semiconductors",
-        "ITA": "Defense",
-        "TAN": "Solar",
-        "URA": "Nuclear",
-        "XBI": "Biotech",
+        "XLK":"Technology",   "XLF":"Financials",
+        "XLE":"Energy",       "XLV":"Healthcare",
+        "XLI":"Industrials",  "XLU":"Utilities",
+        "XLB":"Materials",    "XLRE":"Real Estate",
+        "XLY":"Consumer Disc","XLP":"Consumer Staples",
+        "XLC":"Communication","SMH":"Semiconductors",
+        "ITA":"Defense",      "TAN":"Solar",
+        "URA":"Nuclear",      "XBI":"Biotech",
     }
-    hot_sectors = set()
-    sector_perf = {}
-
+    hot_sectors  = set()
+    sector_perf  = {}
     for etf, name in sector_etfs.items():
         try:
             df = yf.download(etf, period="3mo", interval="1d", progress=False)
             df = df.dropna()
             df.columns = df.columns.get_level_values(0)
-            if df.empty or len(df) < 20:
+            if df.empty or len(df) < 21:
                 continue
-            # 1-week return (5 trading days)
-            ret_1w = float(df['Close'].pct_change(5).iloc[-1])
-            # 1-month return (21 trading days)
-            ret_1m = float(df['Close'].pct_change(21).iloc[-1])
-            # Volume trend (recent vs older)
-            avg_vol_recent = float(df['Volume'].iloc[-5:].mean())
-            avg_vol_older  = float(df['Volume'].iloc[-21:-5].mean())
-            vol_trend      = avg_vol_recent / avg_vol_older if avg_vol_older > 0 else 1
-
+            ret_1w  = float(df['Close'].pct_change(5).iloc[-1])
+            ret_1m  = float(df['Close'].pct_change(21).iloc[-1])
+            avg_r   = float(df['Volume'].iloc[-5:].mean())
+            avg_o   = float(df['Volume'].iloc[-21:-5].mean())
+            vol_tr  = avg_r / avg_o if avg_o > 0 else 1
             sector_perf[etf] = {
-                "name":     name,
-                "ret_1w":   ret_1w,
-                "ret_1m":   ret_1m,
-                "vol_trend": vol_trend
+                "name": name, "ret_1w": ret_1w,
+                "ret_1m": ret_1m, "vol_trend": vol_tr
             }
             time.sleep(0.3)
         except Exception:
             continue
-
     if not sector_perf:
         return hot_sectors
-
-    # Calculate median returns as benchmark
-    all_1w = [v['ret_1w'] for v in sector_perf.values()]
-    all_1m = [v['ret_1m'] for v in sector_perf.values()]
-    med_1w = sorted(all_1w)[len(all_1w)//2]
-    med_1m = sorted(all_1m)[len(all_1m)//2]
-
-    print("\nSector Rotation (1W | 1M | Vol Trend):")
-    for etf, data in sorted(sector_perf.items(),
-                             key=lambda x: x[1]['ret_1w'], reverse=True):
-        is_hot = (data['ret_1w'] > med_1w and
-                  data['ret_1m'] > med_1m and
-                  data['vol_trend'] > 0.9)
+    all_1w  = [v['ret_1w'] for v in sector_perf.values()]
+    all_1m  = [v['ret_1m'] for v in sector_perf.values()]
+    med_1w  = sorted(all_1w)[len(all_1w)//2]
+    med_1m  = sorted(all_1m)[len(all_1m)//2]
+    print("\nSector Rotation:")
+    for etf, d in sorted(sector_perf.items(), key=lambda x: x[1]['ret_1w'], reverse=True):
+        is_hot = d['ret_1w'] > med_1w and d['ret_1m'] > med_1m and d['vol_trend'] > 0.9
         if is_hot:
             hot_sectors.add(etf)
         flag = "🔥" if is_hot else "  "
-        print(f"  {flag} {etf:6} {data['name']:20}"
-              f" 1W:{data['ret_1w']:+.1%}"
-              f" 1M:{data['ret_1m']:+.1%}"
-              f" Vol:{data['vol_trend']:.2f}x")
-
+        print(f"  {flag} {etf:5} {d['name']:20} 1W:{d['ret_1w']:+.1%} 1M:{d['ret_1m']:+.1%}")
     return hot_sectors
 
 # =========================================
-# PROFESSIONAL LAYER 3
-# CANDLE QUALITY FILTER
-# Checks the shape and pattern of last 3 candles
-# Professionals only enter on quality candle setups
+# CANDLE QUALITY
 # =========================================
 
 def candle_quality_score(df):
-    """
-    Analyses the last 3 candles for quality.
-    Returns a score from -4 to +6.
-
-    Bullish patterns:
-    + Strong bullish close (close in top 30% of range)
-    + Inside bar breakout (today > yesterday's high)
-    + No upper wick rejection (wick < 30% of range)
-    + Recent candle body > ATR * 0.5 (strong move)
-    + Gap up from yesterday's close
-
-    Bearish patterns (penalties):
-    - Shooting star / doji (indecision)
-    - Long upper wick (rejection)
-    - Close below open for 2 of last 3 days
-    """
     score = 0
-
     try:
-        c1 = df.iloc[-1]   # today
-        c2 = df.iloc[-2]   # yesterday
-        c3 = df.iloc[-3]   # 2 days ago
+        c1 = df.iloc[-1]
+        c2 = df.iloc[-2]
+        c3 = df.iloc[-3]
+        atr         = float(df['ATR'].iloc[-1]) if 'ATR' in df.columns else float(c1['High'] - c1['Low'])
+        today_range = float(c1['High'] - c1['Low'])
+        today_body  = abs(float(c1['Close'] - c1['Open']))
+        today_upper = float(c1['High']) - max(float(c1['Close']), float(c1['Open']))
+        close_pos   = ((float(c1['Close']) - float(c1['Low'])) / today_range) if today_range > 0 else 0.5
 
-        atr = float(df['ATR'].iloc[-1]) if 'ATR' in df.columns else \
-              float(c1['High'] - c1['Low'])
+        if close_pos > 0.70:                                     score += 2
+        elif close_pos > 0.50:                                   score += 1
+        elif close_pos < 0.30:                                   score -= 2
 
-        # --- Today's candle analysis ---
-        today_range  = float(c1['High'] - c1['Low'])
-        today_body   = abs(float(c1['Close'] - c1['Open']))
-        today_upper  = float(c1['High']) - max(float(c1['Close']), float(c1['Open']))
-        today_lower  = min(float(c1['Close']), float(c1['Open'])) - float(c1['Low'])
-        close_pos    = ((float(c1['Close']) - float(c1['Low'])) /
-                        today_range) if today_range > 0 else 0.5
+        if today_range > 0 and today_upper / today_range > 0.40: score -= 1
+        if today_body > atr * 0.5:                               score += 1
+        if float(c1['Open']) > float(c2['Close']) * 1.005:       score += 1
+        if float(c1['Close']) > float(c2['High']):               score += 1
 
-        # Strong bullish close (in top 30% of day's range)
-        if close_pos > 0.70:
-            score += 2
-        elif close_pos > 0.50:
-            score += 1
-        elif close_pos < 0.30:
-            score -= 2  # weak close near lows
-
-        # Long upper wick rejection (bearish)
-        if today_range > 0 and today_upper / today_range > 0.40:
-            score -= 1  # shooting star / bearish rejection
-
-        # Strong body (momentum candle)
-        if today_body > atr * 0.5:
-            score += 1
-
-        # Gap up from yesterday (institutional buying)
-        if float(c1['Open']) > float(c2['Close']) * 1.005:
-            score += 1
-
-        # Inside bar breakout (today breaks above yesterday's high)
-        if float(c1['Close']) > float(c2['High']):
-            score += 1
-
-        # --- Last 3 candles trend ---
-        bullish_candles = sum([
+        bull = sum([
             float(c1['Close']) > float(c1['Open']),
             float(c2['Close']) > float(c2['Open']),
             float(c3['Close']) > float(c3['Open']),
         ])
-        if bullish_candles == 3:
-            score += 1   # three consecutive bullish candles
-        elif bullish_candles <= 1:
-            score -= 1   # mostly bearish candles recently
+        if bull == 3:   score += 1
+        elif bull <= 1: score -= 1
 
-        # Doji check (indecision — body < 10% of range)
-        if today_range > 0 and today_body / today_range < 0.10:
-            score -= 1   # doji = uncertainty, avoid entry
-
-    except Exception as e:
-        print(f"    Candle analysis error: {e}")
-
+        if today_range > 0 and today_body / today_range < 0.10:  score -= 1  # doji
+    except Exception:
+        pass
     return score
 
 # =========================================
-# PROFESSIONAL LAYER 4
 # FUNDAMENTAL FILTER
 # =========================================
 
@@ -270,37 +176,20 @@ def passes_fundamental_filter(symbol):
         info = yf.Ticker(symbol).info
         if not info:
             return True
-
-        # EPS — not deeply loss making
-        eps = info.get("trailingEps", None)
-        if eps is not None and eps < -5:
-            print(f"    ❌ {symbol}: EPS {eps:.1f} — skip")
-            return False
-
-        # Debt/Equity < 300%
-        de = info.get("debtToEquity", None)
-        if de is not None and de > 300:
-            print(f"    ❌ {symbol}: D/E {de:.0f} — skip")
-            return False
-
-        # Market cap > $1B
+        eps    = info.get("trailingEps", None)
+        de     = info.get("debtToEquity", None)
         mktcap = info.get("marketCap", None)
-        if mktcap is not None and mktcap < 1_000_000_000:
-            print(f"    ❌ {symbol}: mktcap too small — skip")
-            return False
-
-        # Revenue > 0
-        rev = info.get("totalRevenue", None)
-        if rev is not None and rev <= 0:
-            print(f"    ❌ {symbol}: no revenue — skip")
-            return False
-
+        rev    = info.get("totalRevenue", None)
+        if eps    is not None and eps    < -5:          return False
+        if de     is not None and de     > 300:         return False
+        if mktcap is not None and mktcap < 1_000_000_000: return False
+        if rev    is not None and rev    <= 0:          return False
         return True
     except Exception:
         return True
 
 # =========================================
-# MARKET TREND FILTER — S&P 500
+# MARKET TREND
 # =========================================
 
 def market_is_bullish():
@@ -313,10 +202,10 @@ def market_is_bullish():
     df['EMA200'] = ta.trend.ema_indicator(df['Close'], window=200)
     latest = df.iloc[-1]
     close  = float(latest['Close'])
-    ema50  = float(latest['EMA50'])
-    ema200 = float(latest['EMA200'])
-    print(f"S&P: {close:.0f} | EMA50: {ema50:.0f} | EMA200: {ema200:.0f}")
-    return close > ema50 and close > ema200
+    e50    = float(latest['EMA50'])
+    e200   = float(latest['EMA200'])
+    print(f"S&P: {close:.0f} | EMA50: {e50:.0f} | EMA200: {e200:.0f}")
+    return close > e50 and close > e200
 
 # =========================================
 # SECTOR STRENGTH (long-term)
@@ -364,6 +253,7 @@ def is_near_earnings(symbol, days=5):
 
 # =========================================
 # MAIN TECHNICAL SCANNER
+# Includes OBV + MACD + all existing checks
 # =========================================
 
 def check_stock(symbol, spy_df, hot_sectors):
@@ -371,7 +261,6 @@ def check_stock(symbol, spy_df, hot_sectors):
         df = yf.download(symbol, period="2y", interval="1d", progress=False)
         if df is None or df.empty or len(df) < 250:
             return None
-
         df = df.dropna()
         df.columns = df.columns.get_level_values(0)
         if df.empty or len(df) < 250:
@@ -381,14 +270,11 @@ def check_stock(symbol, spy_df, hot_sectors):
         if price < 5.0:
             return None
 
-        # Liquidity — $2M+ daily
-        avg_dv = float(
-            df['Close'].iloc[-20:].mean() * df['Volume'].iloc[-20:].mean()
-        )
+        avg_dv = float(df['Close'].iloc[-20:].mean() * df['Volume'].iloc[-20:].mean())
         if avg_dv < 2_000_000:
             return None
 
-        # Indicators
+        # ---- Indicators ----
         df['EMA10']  = ta.trend.ema_indicator(df['Close'], window=10)
         df['EMA20']  = ta.trend.ema_indicator(df['Close'], window=20)
         df['EMA50']  = ta.trend.ema_indicator(df['Close'], window=50)
@@ -397,13 +283,41 @@ def check_stock(symbol, spy_df, hot_sectors):
         df['AvgVol'] = df['Volume'].rolling(20).mean()
         df['HH20']   = df['High'].rolling(20).max()
         df['High52']  = df['High'].rolling(252).max()
+
         df['TR'] = (
             df['High'] - df['Low']
         ).combine(abs(df['High'] - df['Close'].shift(1)), max
         ).combine(abs(df['Low']  - df['Close'].shift(1)), max)
         df['ATR'] = df['TR'].rolling(14).mean()
 
-        # Relative strength vs SPY
+        # ---- NEW: OBV (On-Balance Volume) ----
+        # Tracks cumulative buying vs selling pressure
+        # Rising OBV with rising price = healthy trend
+        # Falling OBV with rising price = distribution trap
+        df['OBV'] = ta.volume.on_balance_volume(df['Close'], df['Volume'])
+        df['OBV_EMA20'] = ta.trend.ema_indicator(df['OBV'], window=20)
+        obv_rising = float(df['OBV'].iloc[-1]) > float(df['OBV_EMA20'].iloc[-1])
+        obv_trend  = float(df['OBV'].pct_change(10).iloc[-1])  # 10-day OBV trend
+
+        # ---- NEW: MACD ----
+        # MACD line crossing above signal = momentum confirmation
+        # Histogram expanding = accelerating momentum
+        macd_line   = ta.trend.macd(df['Close'], window_slow=26, window_fast=12)
+        macd_signal = ta.trend.macd_signal(df['Close'], window_slow=26, window_fast=12, window_sign=9)
+        macd_hist   = ta.trend.macd_diff(df['Close'], window_slow=26, window_fast=12, window_sign=9)
+
+        macd_now      = float(macd_line.iloc[-1])
+        macd_sig_now  = float(macd_signal.iloc[-1])
+        macd_prev     = float(macd_line.iloc[-2])
+        macd_sig_prev = float(macd_signal.iloc[-2])
+        macd_hist_now = float(macd_hist.iloc[-1])
+        macd_hist_prv = float(macd_hist.iloc[-2])
+
+        macd_crossed_up  = macd_prev < macd_sig_prev and macd_now > macd_sig_now
+        macd_above_sig   = macd_now > macd_sig_now
+        macd_hist_rising = macd_hist_now > macd_hist_prv and macd_hist_now > 0
+
+        # ---- Relative strength vs SPY ----
         s3  = df['Close'].pct_change(63).iloc[-1]
         s6  = df['Close'].pct_change(126).iloc[-1]
         s12 = df['Close'].pct_change(252).iloc[-1]
@@ -414,8 +328,7 @@ def check_stock(symbol, spy_df, hot_sectors):
 
         latest = df.iloc[-1]
         prev   = df.iloc[-2]
-
-        score = 0
+        score  = 0
 
         # ---- RELATIVE STRENGTH ----
         if rs >= 2:                                              score += 2
@@ -464,18 +377,28 @@ def check_stock(symbol, spy_df, hot_sectors):
 
         # ---- DISTRIBUTION PENALTY ----
         recent_high = df['High'].iloc[-10:].max()
-        if latest['Close'] < recent_high * 0.85:
-            score -= 2
+        if latest['Close'] < recent_high * 0.85:                score -= 2
 
-        # ---- PROFESSIONAL LAYER: CANDLE QUALITY ----
+        # ---- NEW: OBV SCORING ----
+        # Rising OBV = institutions buying = strong signal
+        # Falling OBV while price rises = distribution = dangerous
+        if obv_rising and obv_trend > 0:                        score += 2  # OBV confirming price
+        elif obv_rising:                                         score += 1  # OBV above its MA
+        elif obv_trend < -0.05:                                  score -= 2  # heavy distribution
+
+        # ---- NEW: MACD SCORING ----
+        if macd_crossed_up:                                      score += 2  # fresh crossover = best signal
+        elif macd_above_sig and macd_hist_rising:                score += 2  # above signal + accelerating
+        elif macd_above_sig:                                     score += 1  # above signal only
+        elif not macd_above_sig and macd_hist_now < 0:           score -= 1  # below signal = weak
+
+        # ---- CANDLE QUALITY ----
         candle_score = candle_quality_score(df)
         score += candle_score
 
-        # ---- PROFESSIONAL LAYER: SECTOR ROTATION BONUS ----
+        # ---- SECTOR ROTATION BONUS ----
         stock_sector = sector_map.get(symbol, "OTHER")
-        if stock_sector in hot_sectors:
-            score += 2   # money actively flowing into this sector NOW
-            print(f"    🔥 {symbol} sector {stock_sector} is HOT — +2")
+        if stock_sector in hot_sectors:                          score += 2
 
         if score < SCORE_THRESHOLD:
             return None
@@ -498,21 +421,26 @@ def check_stock(symbol, spy_df, hot_sectors):
         target   = entry + (risk * RR_RATIO)
         invested = round(entry * size, 0)
 
-        # Candle quality label
-        if candle_score >= 3:
-            candle_label = "💪 Strong"
-        elif candle_score >= 1:
-            candle_label = "👍 Good"
-        elif candle_score == 0:
-            candle_label = "😐 Neutral"
-        else:
-            candle_label = "⚠️ Weak"
+        # Labels
+        if candle_score >= 3:    candle_label = "Strong"
+        elif candle_score >= 1:  candle_label = "Good"
+        elif candle_score == 0:  candle_label = "Neutral"
+        else:                    candle_label = "Weak"
+
+        if macd_crossed_up:      macd_label = "Fresh cross"
+        elif macd_above_sig:     macd_label = "Bullish"
+        else:                    macd_label = "Bearish"
+
+        obv_label = "Confirming" if obv_rising and obv_trend > 0 else \
+                    "Rising"     if obv_rising else "Diverging"
 
         return {
             "Symbol":   symbol,
             "Sector":   stock_sector,
             "Score":    score,
             "Candle":   candle_label,
+            "MACD":     macd_label,
+            "OBV":      obv_label,
             "Entry":    round(entry, 2),
             "Stop":     round(float(stop), 2),
             "Target":   round(float(target), 2),
@@ -523,7 +451,7 @@ def check_stock(symbol, spy_df, hot_sectors):
         }
 
     except Exception as e:
-        print(f"  ⚠️ Error — {symbol}: {e}")
+        print(f"  ⚠️ {symbol}: {e}")
         return None
 
 # =========================================
@@ -531,57 +459,40 @@ def check_stock(symbol, spy_df, hot_sectors):
 # =========================================
 
 sector_map = {
-    # Semiconductors
     "NVDA":"SMH",  "AMD":"SMH",   "AVGO":"SMH",  "TSM":"SMH",
     "AMAT":"SMH",  "LRCX":"SMH",  "KLAC":"SMH",  "ASML":"SMH",
     "ARM":"SMH",   "MRVL":"SMH",  "ONTO":"SMH",  "ENTG":"SMH",
     "SMH":"SMH",   "SOXX":"SOXX",
-    # AI Software
     "PLTR":"XLK",  "MSFT":"XLK",  "GOOGL":"XLC", "META":"XLC",
     "AMZN":"XLK",  "NOW":"XLK",   "CRM":"XLK",   "ADBE":"XLK",
     "INTU":"XLK",  "APP":"XLK",   "RBLX":"XLC",
-    # Cybersecurity
     "CRWD":"XLK",  "PANW":"XLK",  "ZS":"XLK",
     "FTNT":"XLK",  "OKTA":"XLK",  "S":"XLK",     "CYBR":"XLK",
-    # Cloud / Data
     "SNOW":"XLK",  "DDOG":"XLK",  "NET":"XLK",
     "ORCL":"XLK",  "MDB":"XLK",   "GTLB":"XLK",
-    # EV / Mobility
     "TSLA":"XLY",  "UBER":"XLY",  "LYFT":"XLY",
-    # Clean Energy
     "NEE":"XLU",   "FSLR":"TAN",  "ENPH":"TAN",
     "SEDG":"TAN",  "ICLN":"XLU",  "TAN":"TAN",
-    # AI Infrastructure
     "SMCI":"SMH",  "ANET":"XLK",  "DELL":"XLK",
     "HPE":"XLK",   "VRT":"XLI",   "EQIX":"XLRE", "DLR":"XLRE",
-    # Defense
     "LMT":"ITA",   "RTX":"ITA",   "NOC":"ITA",
     "GD":"ITA",    "KTOS":"ITA",  "LDOS":"ITA",
     "HII":"ITA",   "TDG":"ITA",   "ITA":"ITA",   "XAR":"XAR",
-    # Space
     "RKLB":"ITA",  "ASTS":"ITA",  "LUNR":"ITA",
     "GE":"XLI",    "BA":"XLI",
-    # Nuclear / Power Grid
     "CCJ":"URA",   "NXE":"URA",   "LEU":"URA",
     "SMR":"URA",   "OKLO":"URA",  "URA":"URA",   "URNM":"URA",
     "VST":"XLU",   "CEG":"XLU",   "ETN":"XLI",
     "GEV":"XLI",   "PWR":"XLI",   "ACHR":"XLI",
-    # Biotech
     "LLY":"XBI",   "NVO":"XBI",   "VKTX":"XBI",
     "RXRX":"XBI",  "ROIV":"XBI",  "XBI":"XBI",
-    # Quantum
     "IONQ":"XLK",  "RGTI":"XLK",  "QUBT":"XLK",
-    # Financials
     "GS":"XLF",    "JPM":"XLF",   "V":"XLF",
     "MA":"XLF",    "PYPL":"XLF",  "AFRM":"XLF",
     "HOOD":"XLF",  "IBKR":"XLF",
-    # Consumer
     "COST":"XLP",  "DECK":"XLY",  "ONON":"XLY",  "LULU":"XLY",
-    # Commodities
     "GLD":"GLD",   "IAU":"GLD",   "SLV":"SLV",
-    "COPX":"XLB",  "URA":"URA",   "WPM":"XLB",
-    "GOLD":"XLB",  "MP":"XLB",
-    # Materials
+    "COPX":"XLB",  "WPM":"XLB",   "GOLD":"XLB",  "MP":"XLB",
     "ALB":"XLB",   "SQM":"XLB",
 }
 
@@ -594,130 +505,123 @@ stocks = list(dict.fromkeys(sector_map.keys()))
 def run_agent():
 
     print(f"\n{'='*55}")
-    print(f"🇺🇸 US Pro Scan — {datetime.now().strftime('%d %b %Y %H:%M:%S')}")
+    print(f"US Pro Scan — {datetime.now().strftime('%d %b %Y %H:%M:%S')}")
     print(f"{'='*55}")
 
-    # Gate 1 — Market trend
     if not market_is_bullish():
         msg = (
             f"📉 S&P below EMA50/EMA200 — cash only\n"
-            f"No new trades today.\n"
             f"{datetime.now().strftime('%d %b %Y %H:%M')}"
         )
-        print(msg)
         send_telegram(msg)
         return
 
-    # Gate 2 — Market breadth
     print("\nChecking market breadth...")
     breadth = get_market_breadth()
     if breadth < 40:
         msg = (
-            f"⚠️ Market breadth WEAK — {breadth}% above EMA50\n"
-            f"Only {breadth}% of S&P stocks are healthy.\n"
-            f"Skipping new trades — too risky.\n"
+            f"⚠️ Market breadth WEAK ({breadth}%)\n"
+            f"Only {breadth}% of S&P stocks healthy.\n"
+            f"Skipping — too risky.\n"
             f"{datetime.now().strftime('%d %b %Y %H:%M')}"
         )
-        print(msg)
         send_telegram(msg)
         return
 
-    breadth_label = (
-        "🟢 Strong" if breadth >= 60 else
-        "🟡 Mixed"  if breadth >= 40 else
-        "🔴 Weak"
-    )
+    breadth_label = "Strong" if breadth >= 60 else "Mixed" if breadth >= 40 else "Weak"
 
-    # Gate 3 — Sector rotation
     print("\nChecking sector rotation...")
     hot_sectors = get_sector_rotation()
 
-    # Download SPY benchmark
     spy_df = yf.download("^GSPC", period="1y", interval="1d", progress=False)
     if spy_df is None or spy_df.empty:
-        print("⚠️ Failed to download S&P data")
         return
     spy_df = spy_df.dropna()
     spy_df.columns = spy_df.columns.get_level_values(0)
 
-    picks            = []
-    skipped_fund     = 0
-    skipped_sector   = 0
-    skipped_earnings = 0
+    picks          = []
+    sector_counts  = {}          # correlation filter tracker
+    skipped_fund   = 0
+    skipped_sec    = 0
+    skipped_earn   = 0
+    skipped_corr   = 0
 
     print(f"\nScanning {len(stocks)} stocks...")
 
     for stock in stocks:
         time.sleep(0.8)
 
-        # Fundamental filter
         if not passes_fundamental_filter(stock):
             skipped_fund += 1
             continue
 
-        # Sector long-term strength
         etf = sector_map.get(stock, "OTHER")
-        if etf not in {"OTHER", "GLD", "SLV"}:
+        if etf not in {"OTHER","GLD","SLV"}:
             if not sector_is_strong(etf):
-                skipped_sector += 1
+                skipped_sec += 1
                 continue
 
-        # Earnings filter
         if is_near_earnings(stock):
-            skipped_earnings += 1
+            skipped_earn += 1
             continue
 
-        # Technical scan
         result = check_stock(stock, spy_df, hot_sectors)
+
         if result:
+            # ---- CORRELATION FILTER ----
+            # Max MAX_PER_SECTOR picks from same sector
+            sec = result['Sector']
+            if sector_counts.get(sec, 0) >= MAX_PER_SECTOR:
+                print(f"  {stock}: sector {sec} full ({MAX_PER_SECTOR}) — skip")
+                skipped_corr += 1
+                continue
+            sector_counts[sec] = sector_counts.get(sec, 0) + 1
+
             print(
                 f"  ✅ {result['Symbol']:6} [{result['Sector']:5}]"
                 f" score:{result['Score']:3}"
+                f" MACD:{result['MACD']:12}"
+                f" OBV:{result['OBV']:12}"
                 f" candle:{result['Candle']}"
-                f" entry:${result['Entry']}"
             )
             picks.append(result)
 
     print(f"\n{'='*55}")
-    print(f"Scanned  : {len(stocks)}")
-    print(f"Fund ❌  : {skipped_fund}")
-    print(f"Sector ❌: {skipped_sector}")
-    print(f"Earnings❌: {skipped_earnings}")
-    print(f"✅ Qualify: {len(picks)}")
+    print(f"Scanned:{len(stocks)} Fund❌:{skipped_fund} "
+          f"Sector❌:{skipped_sec} Earn❌:{skipped_earn} "
+          f"Corr❌:{skipped_corr} ✅:{len(picks)}")
     print(f"{'='*55}")
 
     if not picks:
         send_telegram(
             f"🔍 US Scan — {datetime.now().strftime('%d %b %Y %H:%M')}\n"
-            f"✅ Market bullish | Breadth: {breadth_label} ({breadth}%)\n"
-            f"No high-quality setups found this scan.\n"
-            f"Wait for next scan."
+            f"Market bullish | Breadth:{breadth_label} ({breadth}%)\n"
+            f"No high-quality setups found — wait for next scan."
         )
         return
 
-    picks = sorted(picks, key=lambda x: (x['Score'], x['Reward$']), reverse=True)
-
-    # Hot sectors summary
-    hot_str = ", ".join(sorted(hot_sectors)) if hot_sectors else "None"
+    picks    = sorted(picks, key=lambda x: (x['Score'], x['Reward$']), reverse=True)
+    hot_str  = ", ".join(sorted(hot_sectors)) if hot_sectors else "None"
 
     send_telegram(
         f"📊 US PRO SCAN — {datetime.now().strftime('%d %b %Y %H:%M')}\n"
-        f"{'='*32}\n"
-        f"✅ S&P: Bullish (EMA50 + EMA200)\n"
-        f"📈 Breadth: {breadth_label} ({breadth}%)\n"
-        f"🔥 Hot Sectors: {hot_str}\n"
-        f"🎯 {len(picks)} setup(s) found\n"
-        f"Top {min(TOP_PICKS, len(picks))} picks below ↓\n"
-        f"Trade what suits you — alerts only."
+        f"{'='*34}\n"
+        f"S&P   : Bullish (EMA50 + EMA200)\n"
+        f"Breadth: {breadth_label} ({breadth}%)\n"
+        f"Hot   : {hot_str}\n"
+        f"Setups: {len(picks)} found\n"
+        f"Top {min(TOP_PICKS,len(picks))} picks below — alerts only."
     )
 
     for pick in picks[:TOP_PICKS]:
         rr  = round(pick['Reward$'] / pick['Risk$'], 1) if pick['Risk$'] > 0 else 0
         msg = (
-            f"{'='*32}\n"
+            f"{'='*34}\n"
             f"🚀 {pick['Symbol']}  [{pick['Sector']}]\n"
-            f"Score   : {pick['Score']}/36\n"
+            f"Score   : {pick['Score']}/42\n"
             f"Candle  : {pick['Candle']}\n"
+            f"MACD    : {pick['MACD']}\n"
+            f"OBV     : {pick['OBV']}\n"
             f"Entry   : ${pick['Entry']}\n"
             f"Stop    : ${pick['Stop']}\n"
             f"Target  : ${pick['Target']}\n"
@@ -726,7 +630,7 @@ def run_agent():
             f"Risk    : ${int(pick['Risk$']):,}\n"
             f"Reward  : ${int(pick['Reward$']):,}\n"
             f"RR      : 1:{rr}\n"
-            f"{'='*32}"
+            f"{'='*34}"
         )
         send_telegram(msg)
         time.sleep(0.5)
