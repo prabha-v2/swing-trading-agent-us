@@ -639,7 +639,28 @@ def run_agent():
 # RUN
 # =========================================
 
+def is_market_hours():
+    now_utc  = datetime.utcnow()
+    if now_utc.weekday() > 4:
+        return False
+    time_val = now_utc.hour * 60 + now_utc.minute
+    return (12 * 60) <= time_val <= (20 * 60 + 30)
+
 if __name__ == "__main__":
     print("🚀 US Professional Swing Trading Agent")
-    run_agent()
-    print("✅ Done")
+    print(f"Started at {datetime.utcnow().strftime('%H:%M UTC')}")
+
+    if is_market_hours():
+        run_agent()
+    else:
+        print(f"Outside market hours — waiting...")
+
+    while True:
+        time.sleep(30 * 60)
+        if is_market_hours():
+            run_agent()
+        else:
+            print(f"Market closed — exiting.")
+            break
+
+    print("✅ Done — market closed.")
