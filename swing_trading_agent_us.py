@@ -494,6 +494,31 @@ sector_map = {
     "GLD":"GLD",   "IAU":"GLD",   "SLV":"SLV",
     "COPX":"XLB",  "WPM":"XLB",   "GOLD":"XLB",  "MP":"XLB",
     "ALB":"XLB",   "SQM":"XLB",
+    # Memory & Storage (hottest theme 2026)
+    "SNDK": "SMH",
+    "WDC":  "SMH",
+    "MU":   "SMH",
+    "STX":  "SMH",
+    "DRAM": "SMH",   # Roundhill Memory ETF
+
+    # Fintech / Banking
+    "SOFI": "XLF",
+    "NU":   "XLF",
+    "COF":  "XLF",
+
+    # Momentum leaders
+    "AXON": "XLK",
+    "CORT": "XLK",
+
+    # Energy
+    "NRG":  "XLU",
+    "MPC":  "XLE",
+    "NFLX": "XLC",   # Netflix — missing major momentum name
+    "WMT":  "XLP",   # Walmart — defensive momentum
+    "XOM":  "XLE",   # Exxon — oil cycle
+    "CVX":  "XLE",   # Chevron — oil cycle  
+    "AMT":  "XLRE",  # American Tower — REIT momentum
+    "COIN": "XLF",   # Coinbase — crypto/fintech missing
 }
 
 stocks = list(dict.fromkeys(sector_map.keys()))
