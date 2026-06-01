@@ -11,29 +11,16 @@ on:
   # Every 30 mins from 12:30 UTC to 20:00 UTC, Mon–Fri
   # -------------------------------------------------------
   schedule:
-    - cron: '30 12 * * 1-5'
-    - cron: '0  13 * * 1-5'
-    - cron: '30 13 * * 1-5'
-    - cron: '0  14 * * 1-5'
-    - cron: '30 14 * * 1-5'
-    - cron: '0  15 * * 1-5'
-    - cron: '30 15 * * 1-5'
-    - cron: '0  16 * * 1-5'
-    - cron: '30 16 * * 1-5'
-    - cron: '0  17 * * 1-5'
-    - cron: '30 17 * * 1-5'
-    - cron: '0  18 * * 1-5'
-    - cron: '30 18 * * 1-5'
-    - cron: '0  19 * * 1-5'
-    - cron: '30 19 * * 1-5'
-    - cron: '0  20 * * 1-5'
-
+    - cron: '30 12 * * 1-5'   # 6:00 PM IST — 1hr before US open
+    - cron: '30 14 * * 1-5'   # 8:00 PM IST
+    - cron: '30 16 * * 1-5'   # 10:00 PM IST
+    - cron: '30 18 * * 1-5'   # 12:00 AM IST
   workflow_dispatch:   # keep manual trigger for testing
 
 jobs:
   run-agent:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 115
 
     steps:
       - name: Checkout repo
