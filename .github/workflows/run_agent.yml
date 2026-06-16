@@ -15,6 +15,7 @@ on:
     - cron: '30 14 * * 1-5'   # 8:00 PM IST
     - cron: '30 16 * * 1-5'   # 10:00 PM IST
     - cron: '30 18 * * 1-5'   # 12:00 AM IST
+    - cron: '00 21 * * 1-5'   # 2:30 AM IST — post-close EOD scan (most reliable — full candles)
   workflow_dispatch:   # keep manual trigger for testing
 
 jobs:

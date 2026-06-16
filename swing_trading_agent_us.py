@@ -10,17 +10,17 @@ from datetime import datetime
 # SETTINGS
 # =========================================
 
-ACCOUNT_SIZE    = 30000
-RISK_PER_TRADE  = 0.01
-RR_RATIO        = 2.5
-MAX_ATR_STOP    = 3.0
-MAX_POSITION    = 500
-SCORE_THRESHOLD = 18
-TOP_PICKS       = 5
-MAX_PER_SECTOR  = 2            # correlation filter — max 2 picks per sector
+ACCOUNT_SIZE     = 30000
+RISK_PER_TRADE   = 0.01
+RR_RATIO         = 2.5
+MAX_ATR_STOP     = 3.0
+MAX_POSITION_PCT = 0.15          # max 15% of account per trade ($4,500) — replaces share cap
+SCORE_THRESHOLD  = 22            # raised from 18 — requires stronger multi-indicator confluence
+TOP_PICKS        = 5
+MAX_PER_SECTOR   = 2
 
-TELEGRAM_TOKEN  = os.environ.get("TELEGRAM_TOKEN", "")
-CHAT_ID         = os.environ.get("CHAT_ID", "")
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
+CHAT_ID        = os.environ.get("CHAT_ID", "")
 
 # =========================================
 # TELEGRAM
@@ -34,6 +34,21 @@ def send_telegram(msg):
             print(f"⚠️ Telegram error: {resp.status_code}")
     except Exception as e:
         print(f"⚠️ Telegram failed: {e}")
+
+# =========================================
+# VIX REGIME
+# =========================================
+
+def get_vix():
+    try:
+        df = yf.download("^VIX", period="5d", interval="1d", progress=False)
+        df = df.dropna()
+        df.columns = df.columns.get_level_values(0)
+        vix = float(df['Close'].iloc[-1])
+        print(f"VIX: {vix:.1f}")
+        return vix
+    except Exception:
+        return 18.0
 
 # =========================================
 # MARKET BREADTH
@@ -84,8 +99,8 @@ def get_sector_rotation():
         "ITA":"Defense",      "TAN":"Solar",
         "URA":"Nuclear",      "XBI":"Biotech",
     }
-    hot_sectors  = set()
-    sector_perf  = {}
+    hot_sectors = set()
+    sector_perf = {}
     for etf, name in sector_etfs.items():
         try:
             df = yf.download(etf, period="3mo", interval="1d", progress=False)
@@ -93,11 +108,11 @@ def get_sector_rotation():
             df.columns = df.columns.get_level_values(0)
             if df.empty or len(df) < 21:
                 continue
-            ret_1w  = float(df['Close'].pct_change(5).iloc[-1])
-            ret_1m  = float(df['Close'].pct_change(21).iloc[-1])
-            avg_r   = float(df['Volume'].iloc[-5:].mean())
-            avg_o   = float(df['Volume'].iloc[-21:-5].mean())
-            vol_tr  = avg_r / avg_o if avg_o > 0 else 1
+            ret_1w = float(df['Close'].pct_change(5).iloc[-1])
+            ret_1m = float(df['Close'].pct_change(21).iloc[-1])
+            avg_r  = float(df['Volume'].iloc[-5:].mean())
+            avg_o  = float(df['Volume'].iloc[-21:-5].mean())
+            vol_tr = avg_r / avg_o if avg_o > 0 else 1
             sector_perf[etf] = {
                 "name": name, "ret_1w": ret_1w,
                 "ret_1m": ret_1m, "vol_trend": vol_tr
@@ -107,10 +122,10 @@ def get_sector_rotation():
             continue
     if not sector_perf:
         return hot_sectors
-    all_1w  = [v['ret_1w'] for v in sector_perf.values()]
-    all_1m  = [v['ret_1m'] for v in sector_perf.values()]
-    med_1w  = sorted(all_1w)[len(all_1w)//2]
-    med_1m  = sorted(all_1m)[len(all_1m)//2]
+    all_1w = [v['ret_1w'] for v in sector_perf.values()]
+    all_1m = [v['ret_1m'] for v in sector_perf.values()]
+    med_1w = sorted(all_1w)[len(all_1w)//2]
+    med_1m = sorted(all_1m)[len(all_1m)//2]
     print("\nSector Rotation:")
     for etf, d in sorted(sector_perf.items(), key=lambda x: x[1]['ret_1w'], reverse=True):
         is_hot = d['ret_1w'] > med_1w and d['ret_1m'] > med_1m and d['vol_trend'] > 0.9
@@ -136,24 +151,24 @@ def candle_quality_score(df):
         today_upper = float(c1['High']) - max(float(c1['Close']), float(c1['Open']))
         close_pos   = ((float(c1['Close']) - float(c1['Low'])) / today_range) if today_range > 0 else 0.5
 
-        if close_pos > 0.70:                                     score += 2
-        elif close_pos > 0.50:                                   score += 1
-        elif close_pos < 0.30:                                   score -= 2
+        if close_pos > 0.70:                                      score += 2
+        elif close_pos > 0.50:                                    score += 1
+        elif close_pos < 0.30:                                    score -= 2
 
-        if today_range > 0 and today_upper / today_range > 0.40: score -= 1
-        if today_body > atr * 0.5:                               score += 1
-        if float(c1['Open']) > float(c2['Close']) * 1.005:       score += 1
-        if float(c1['Close']) > float(c2['High']):               score += 1
+        if today_range > 0 and today_upper / today_range > 0.40:  score -= 1
+        if today_body > atr * 0.5:                                score += 1
+        if float(c1['Open']) > float(c2['Close']) * 1.005:        score += 1
+        if float(c1['Close']) > float(c2['High']):                score += 1
 
         bull = sum([
             float(c1['Close']) > float(c1['Open']),
             float(c2['Close']) > float(c2['Open']),
             float(c3['Close']) > float(c3['Open']),
         ])
-        if bull == 3:   score += 1
-        elif bull <= 1: score -= 1
+        if bull == 3:    score += 1
+        elif bull <= 1:  score -= 1
 
-        if today_range > 0 and today_body / today_range < 0.10:  score -= 1  # doji
+        if today_range > 0 and today_body / today_range < 0.10:   score -= 1  # doji
     except Exception:
         pass
     return score
@@ -166,7 +181,7 @@ SKIP_FUNDAMENTAL = {
     "SMH","SOXX","ITA","XAR","TAN","ICLN","URA","URNM",
     "ARKX","QTUM","XBI","XLU","XLI","GLD","IAU","SLV",
     "COPX","UFO","XLK","XLF","XLE","XLV","XLB","XLRE",
-    "XLY","XLP","XLC"
+    "XLY","XLP","XLC","DRAM"
 }
 
 def passes_fundamental_filter(symbol):
@@ -180,10 +195,10 @@ def passes_fundamental_filter(symbol):
         de     = info.get("debtToEquity", None)
         mktcap = info.get("marketCap", None)
         rev    = info.get("totalRevenue", None)
-        if eps    is not None and eps    < -5:          return False
-        if de     is not None and de     > 300:         return False
+        if eps    is not None and eps    < -5:             return False
+        if de     is not None and de     > 300:            return False
         if mktcap is not None and mktcap < 1_000_000_000: return False
-        if rev    is not None and rev    <= 0:          return False
+        if rev    is not None and rev    <= 0:             return False
         return True
     except Exception:
         return True
@@ -227,7 +242,7 @@ def sector_is_strong(etf_symbol):
 # EARNINGS FILTER
 # =========================================
 
-def is_near_earnings(symbol, days=5):
+def is_near_earnings(symbol, days=12):  # extended from 5 to 12 — stocks move unpredictably 2wks before earnings
     if symbol in SKIP_FUNDAMENTAL:
         return False
     try:
@@ -253,10 +268,9 @@ def is_near_earnings(symbol, days=5):
 
 # =========================================
 # MAIN TECHNICAL SCANNER
-# Includes OBV + MACD + all existing checks
 # =========================================
 
-def check_stock(symbol, spy_df, hot_sectors):
+def check_stock(symbol, spy_df, hot_sectors, risk_pct=RISK_PER_TRADE):
     try:
         df = yf.download(symbol, period="2y", interval="1d", progress=False)
         if df is None or df.empty or len(df) < 250:
@@ -282,7 +296,7 @@ def check_stock(symbol, spy_df, hot_sectors):
         df['RSI']    = ta.momentum.rsi(df['Close'], window=14)
         df['AvgVol'] = df['Volume'].rolling(20).mean()
         df['HH20']   = df['High'].rolling(20).max()
-        df['High52']  = df['High'].rolling(252).max()
+        df['High52'] = df['High'].rolling(252).max()
 
         df['TR'] = (
             df['High'] - df['Low']
@@ -290,18 +304,28 @@ def check_stock(symbol, spy_df, hot_sectors):
         ).combine(abs(df['Low']  - df['Close'].shift(1)), max)
         df['ATR'] = df['TR'].rolling(14).mean()
 
-        # ---- NEW: OBV (On-Balance Volume) ----
-        # Tracks cumulative buying vs selling pressure
-        # Rising OBV with rising price = healthy trend
-        # Falling OBV with rising price = distribution trap
-        df['OBV'] = ta.volume.on_balance_volume(df['Close'], df['Volume'])
-        df['OBV_EMA20'] = ta.trend.ema_indicator(df['OBV'], window=20)
-        obv_rising = float(df['OBV'].iloc[-1]) > float(df['OBV_EMA20'].iloc[-1])
-        obv_trend  = float(df['OBV'].pct_change(10).iloc[-1])  # 10-day OBV trend
+        # ---- ADX (Average Directional Index — trend strength) ----
+        df['ADX'] = ta.trend.adx(df['High'], df['Low'], df['Close'], window=14)
+        adx_val   = float(df['ADX'].iloc[-1]) if not pd.isna(df['ADX'].iloc[-1]) else 20.0
 
-        # ---- NEW: MACD ----
-        # MACD line crossing above signal = momentum confirmation
-        # Histogram expanding = accelerating momentum
+        # ---- Bollinger Band Squeeze ----
+        # When bands are at their tightest in 60 days, a big move is coiling
+        df['BB_upper'] = ta.volatility.bollinger_hband(df['Close'], window=20, window_dev=2)
+        df['BB_lower'] = ta.volatility.bollinger_lband(df['Close'], window=20, window_dev=2)
+        df['BB_width'] = (df['BB_upper'] - df['BB_lower']) / df['Close']
+        bb_squeeze = False
+        if len(df) >= 60:
+            pct20      = float(df['BB_width'].iloc[-60:].quantile(0.20))
+            bb_squeeze = float(df['BB_width'].iloc[-1]) < pct20
+
+        # ---- OBV (On-Balance Volume) ----
+        df['OBV']       = ta.volume.on_balance_volume(df['Close'], df['Volume'])
+        df['OBV_EMA20'] = ta.trend.ema_indicator(df['OBV'], window=20)
+        obv_rising      = float(df['OBV'].iloc[-1]) > float(df['OBV_EMA20'].iloc[-1])
+        obv_slope       = float(df['OBV'].iloc[-1]) - float(df['OBV'].iloc[-10])  # slope avoids pct_change bug on negative OBV
+        obv_trend_pos   = obv_slope > 0
+
+        # ---- MACD ----
         macd_line   = ta.trend.macd(df['Close'], window_slow=26, window_fast=12)
         macd_signal = ta.trend.macd_signal(df['Close'], window_slow=26, window_fast=12, window_sign=9)
         macd_hist   = ta.trend.macd_diff(df['Close'], window_slow=26, window_fast=12, window_sign=9)
@@ -331,66 +355,76 @@ def check_stock(symbol, spy_df, hot_sectors):
         score  = 0
 
         # ---- RELATIVE STRENGTH ----
-        if rs >= 2:                                              score += 2
-        if rs == 3:                                              score += 1
+        if rs >= 2:  score += 2
+        if rs == 3:  score += 1
 
         # ---- EMA TREND STACK ----
-        if latest['EMA10']  > latest['EMA20']:                  score += 2
-        if latest['EMA20']  > latest['EMA50']:                  score += 2
-        if latest['EMA50']  > latest['EMA200']:                 score += 2
-        if latest['Close']  > latest['EMA50']:                  score += 1
-        if latest['Close']  > latest['EMA200']:                 score += 2
+        if latest['EMA10']  > latest['EMA20']:  score += 2
+        if latest['EMA20']  > latest['EMA50']:  score += 2
+        if latest['EMA50']  > latest['EMA200']: score += 2
+        if latest['Close']  > latest['EMA50']:  score += 1
+        if latest['Close']  > latest['EMA200']: score += 2
 
-        # ---- RSI ----
-        rsi = float(latest['RSI'])
-        if prev['RSI'] < 50 and rsi > 50:                       score += 2
-        if 50 < rsi < 70:                                        score += 1
-        if rsi > 75:                                             score -= 1
+        # ---- RSI (improved thresholds) ----
+        rsi      = float(latest['RSI'])
+        rsi_prev = float(prev['RSI'])
+        if rsi > 60 and rsi_prev < 60:         score += 2  # momentum breakout above 60
+        elif 55 < rsi < 75:                     score += 2  # strong momentum zone
+        elif 40 < rsi < 55 and rsi > rsi_prev: score += 1  # pullback reset recovering in uptrend
+        elif rsi > 80:                          score -= 2  # severely overbought — likely to stall
+        elif rsi < 40:                          score -= 1  # weak momentum
 
         # ---- BREAKOUT ----
-        if latest['Close'] > prev['HH20']:                      score += 2
+        if latest['Close'] > prev['HH20']:  score += 2
         ath_dist = latest['Close'] / latest['High52']
-        if ath_dist > 0.90:                                      score += 2
-        elif ath_dist > 0.80:                                    score += 1
+        if ath_dist > 0.90:                 score += 2
+        elif ath_dist > 0.80:              score += 1
 
         # ---- VOLUME ----
+        rvol = 0.0
         if latest['AvgVol'] > 0:
             rvol = latest['Volume'] / latest['AvgVol']
-            if rvol > 2.0:                                       score += 2
-            elif rvol > 1.5:                                     score += 1
+            if rvol > 2.0:    score += 2
+            elif rvol > 1.5:  score += 1
 
         # ---- ATR EXPANDING ----
-        if latest['ATR'] > df['ATR'].iloc[-5]:                  score += 1
+        if latest['ATR'] > df['ATR'].iloc[-5]:  score += 1
 
         # ---- ENTRY QUALITY ----
         dist = (latest['Close'] - latest['EMA20']) / latest['EMA20']
-        if dist < 0.05:                                          score += 2
-        elif dist < 0.08:                                        score += 1
-        elif dist > 0.20:                                        score -= 1
+        if dist < 0.05:    score += 2
+        elif dist < 0.08:  score += 1
+        elif dist > 0.20:  score -= 1
 
         # ---- 60-DAY OUTPERFORMANCE ----
         if len(df) >= 60 and len(spy_df) >= 60:
             sr = float(df['Close'].squeeze().pct_change(60).iloc[-1])
             nr = float(spy_df['Close'].squeeze().pct_change(60).iloc[-1])
-            if sr > nr * 1.5:                                    score += 2
-            elif sr > nr:                                        score += 1
+            if sr > nr * 1.5:  score += 2
+            elif sr > nr:      score += 1
 
         # ---- DISTRIBUTION PENALTY ----
         recent_high = df['High'].iloc[-10:].max()
-        if latest['Close'] < recent_high * 0.85:                score -= 2
+        if latest['Close'] < recent_high * 0.85:  score -= 2
 
-        # ---- NEW: OBV SCORING ----
-        # Rising OBV = institutions buying = strong signal
-        # Falling OBV while price rises = distribution = dangerous
-        if obv_rising and obv_trend > 0:                        score += 2  # OBV confirming price
-        elif obv_rising:                                         score += 1  # OBV above its MA
-        elif obv_trend < -0.05:                                  score -= 2  # heavy distribution
+        # ---- OBV SCORING (slope-based — pct_change is invalid on negative OBV) ----
+        if obv_rising and obv_trend_pos:               score += 2  # institutions buying
+        elif obv_rising:                                score += 1  # OBV above its EMA only
+        elif not obv_trend_pos and not obv_rising:      score -= 2  # heavy distribution
 
-        # ---- NEW: MACD SCORING ----
-        if macd_crossed_up:                                      score += 2  # fresh crossover = best signal
-        elif macd_above_sig and macd_hist_rising:                score += 2  # above signal + accelerating
-        elif macd_above_sig:                                     score += 1  # above signal only
-        elif not macd_above_sig and macd_hist_now < 0:           score -= 1  # below signal = weak
+        # ---- MACD SCORING ----
+        if macd_crossed_up:                             score += 2  # fresh crossover = best signal
+        elif macd_above_sig and macd_hist_rising:       score += 2  # above signal + accelerating
+        elif macd_above_sig:                            score += 1  # above signal only
+        elif not macd_above_sig and macd_hist_now < 0: score -= 1  # weak momentum
+
+        # ---- ADX SCORING (trend strength filter) ----
+        if adx_val > 30:    score += 2  # strong trend — high conviction
+        elif adx_val > 20:  score += 1  # developing trend
+        elif adx_val < 15:  score -= 2  # choppy sideways action — penalize hard
+
+        # ---- BOLLINGER BAND SQUEEZE ----
+        if bb_squeeze:  score += 3  # volatility coiling — explosive move imminent
 
         # ---- CANDLE QUALITY ----
         candle_score = candle_quality_score(df)
@@ -398,54 +432,77 @@ def check_stock(symbol, spy_df, hot_sectors):
 
         # ---- SECTOR ROTATION BONUS ----
         stock_sector = sector_map.get(symbol, "OTHER")
-        if stock_sector in hot_sectors:                          score += 2
+        if stock_sector in hot_sectors:  score += 2
 
         if score < SCORE_THRESHOLD:
             return None
 
         # ---- POSITION SIZING ----
-        entry        = float(latest['Close'])
-        atr          = float(latest['ATR'])
-        five_bar_low = float(df['Low'].iloc[-5:].min())
-        atr_stop     = entry - (MAX_ATR_STOP * atr)
-        stop         = max(five_bar_low, atr_stop)
-        risk         = entry - stop
+        entry          = float(latest['Close'])
+        atr            = float(latest['ATR'])
+        ten_bar_low    = float(df['Low'].iloc[-10:].min())  # wider structural stop vs 5-bar
+        atr_stop       = entry - (MAX_ATR_STOP * atr)
+        stop           = max(ten_bar_low, atr_stop)
+        risk           = entry - stop
 
         if risk <= 0 or risk > entry * 0.12:
             return None
 
-        size = min(int((ACCOUNT_SIZE * RISK_PER_TRADE) / risk), MAX_POSITION)
+        # Cap by both risk% and max dollar allocation (prevents 500 shares of $200 stock)
+        max_by_dollars = int((ACCOUNT_SIZE * MAX_POSITION_PCT) / entry)
+        size           = min(int((ACCOUNT_SIZE * risk_pct) / risk), max_by_dollars)
         if size <= 0:
             return None
 
         target   = entry + (risk * RR_RATIO)
         invested = round(entry * size, 0)
+        acct_pct = round((invested / ACCOUNT_SIZE) * 100, 1)
 
-        # Labels
+        # ---- SETUP TYPE ----
+        if bb_squeeze and latest['Close'] > prev['HH20']:
+            setup_type = "Squeeze Breakout"
+        elif latest['Close'] > prev['HH20'] and rvol > 2.0:
+            setup_type = "Volume Breakout"
+        elif dist < 0.05 and rsi > 50:
+            setup_type = "EMA20 Pullback"
+        elif ath_dist > 0.95:
+            setup_type = "ATH Breakout"
+        elif bb_squeeze:
+            setup_type = "Squeeze Setup"
+        else:
+            setup_type = "Trend Continuation"
+
+        # ---- LABELS ----
         if candle_score >= 3:    candle_label = "Strong"
         elif candle_score >= 1:  candle_label = "Good"
         elif candle_score == 0:  candle_label = "Neutral"
         else:                    candle_label = "Weak"
 
-        if macd_crossed_up:      macd_label = "Fresh cross"
-        elif macd_above_sig:     macd_label = "Bullish"
-        else:                    macd_label = "Bearish"
+        if macd_crossed_up:   macd_label = "Fresh cross"
+        elif macd_above_sig:  macd_label = "Bullish"
+        else:                  macd_label = "Bearish"
 
-        obv_label = "Confirming" if obv_rising and obv_trend > 0 else \
+        obv_label = "Confirming" if obv_rising and obv_trend_pos else \
                     "Rising"     if obv_rising else "Diverging"
+
+        adx_label = f"{adx_val:.0f} ({'Strong' if adx_val > 30 else 'Moderate' if adx_val > 20 else 'Weak'})"
 
         return {
             "Symbol":   symbol,
             "Sector":   stock_sector,
             "Score":    score,
+            "Setup":    setup_type,
             "Candle":   candle_label,
             "MACD":     macd_label,
             "OBV":      obv_label,
+            "ADX":      adx_label,
+            "Squeeze":  "Yes" if bb_squeeze else "No",
             "Entry":    round(entry, 2),
             "Stop":     round(float(stop), 2),
             "Target":   round(float(target), 2),
             "Size":     size,
             "Invested": invested,
+            "AcctPct":  acct_pct,
             "Risk$":    round(risk * size, 0),
             "Reward$":  round((float(target) - entry) * size, 0),
         }
@@ -455,70 +512,67 @@ def check_stock(symbol, spy_df, hot_sectors):
         return None
 
 # =========================================
-# STOCK UNIVERSE — 90+ stocks
+# STOCK UNIVERSE
 # =========================================
 
 sector_map = {
+    # Semiconductors
     "NVDA":"SMH",  "AMD":"SMH",   "AVGO":"SMH",  "TSM":"SMH",
     "AMAT":"SMH",  "LRCX":"SMH",  "KLAC":"SMH",  "ASML":"SMH",
     "ARM":"SMH",   "MRVL":"SMH",  "ONTO":"SMH",  "ENTG":"SMH",
-    "SMH":"SMH",   "SOXX":"SOXX",
-    "PLTR":"XLK",  "MSFT":"XLK",  "GOOGL":"XLC", "META":"XLC",
-    "AMZN":"XLK",  "NOW":"XLK",   "CRM":"XLK",   "ADBE":"XLK",
-    "INTU":"XLK",  "APP":"XLK",   "RBLX":"XLC",
-    "CRWD":"XLK",  "PANW":"XLK",  "ZS":"XLK",
-    "FTNT":"XLK",  "OKTA":"XLK",  "S":"XLK",     "CYBR":"XLK",
-    "SNOW":"XLK",  "DDOG":"XLK",  "NET":"XLK",
-    "ORCL":"XLK",  "MDB":"XLK",   "GTLB":"XLK",
-    "TSLA":"XLY",  "UBER":"XLY",  "LYFT":"XLY",
-    "NEE":"XLU",   "FSLR":"TAN",  "ENPH":"TAN",
-    "SEDG":"TAN",  "ICLN":"XLU",  "TAN":"TAN",
-    "SMCI":"SMH",  "ANET":"XLK",  "DELL":"XLK",
-    "HPE":"XLK",   "VRT":"XLI",   "EQIX":"XLRE", "DLR":"XLRE",
-    "LMT":"ITA",   "RTX":"ITA",   "NOC":"ITA",
-    "GD":"ITA",    "KTOS":"ITA",  "LDOS":"ITA",
-    "HII":"ITA",   "TDG":"ITA",   "ITA":"ITA",   "XAR":"XAR",
-    "RKLB":"ITA",  "ASTS":"ITA",  "LUNR":"ITA",
-    "GE":"XLI",    "BA":"XLI",
-    "CCJ":"URA",   "NXE":"URA",   "LEU":"URA",
-    "SMR":"URA",   "OKLO":"URA",  "URA":"URA",   "URNM":"URA",
-    "VST":"XLU",   "CEG":"XLU",   "ETN":"XLI",
-    "GEV":"XLI",   "PWR":"XLI",   "ACHR":"XLI",
-    "LLY":"XBI",   "NVO":"XBI",   "VKTX":"XBI",
-    "RXRX":"XBI",  "ROIV":"XBI",  "XBI":"XBI",
-    "IONQ":"XLK",  "RGTI":"XLK",  "QUBT":"XLK",
-    "GS":"XLF",    "JPM":"XLF",   "V":"XLF",
-    "MA":"XLF",    "PYPL":"XLF",  "AFRM":"XLF",
-    "HOOD":"XLF",  "IBKR":"XLF",
-    "COST":"XLP",  "DECK":"XLY",  "ONON":"XLY",  "LULU":"XLY",
+    "SMH":"SMH",   "SOXX":"SOXX", "SMCI":"SMH",
+    "SNDK":"SMH",  "WDC":"SMH",   "MU":"SMH",    "STX":"SMH",
+    "DRAM":"SMH",
+    # Technology / Software
+    "PLTR":"XLK",  "MSFT":"XLK",  "AMZN":"XLK",  "NOW":"XLK",
+    "CRM":"XLK",   "ADBE":"XLK",  "INTU":"XLK",  "APP":"XLK",
+    "CRWD":"XLK",  "PANW":"XLK",  "ZS":"XLK",    "FTNT":"XLK",
+    "OKTA":"XLK",  "S":"XLK",     "CYBR":"XLK",  "SNOW":"XLK",
+    "DDOG":"XLK",  "NET":"XLK",   "ORCL":"XLK",  "MDB":"XLK",
+    "GTLB":"XLK",  "ANET":"XLK",  "DELL":"XLK",  "HPE":"XLK",
+    "AXON":"XLK",  "CORT":"XLK",  "IONQ":"XLK",  "RGTI":"XLK",
+    "QUBT":"XLK",  "ADSK":"XLK",  "SHOP":"XLK",  "MNDY":"XLK",
+    "GDDY":"XLK",
+    # Communication
+    "GOOGL":"XLC", "META":"XLC",  "RBLX":"XLC",  "NFLX":"XLC",
+    "DUOL":"XLC",
+    # Consumer Discretionary
+    "TSLA":"XLY",  "UBER":"XLY",  "LYFT":"XLY",  "DECK":"XLY",
+    "ONON":"XLY",  "LULU":"XLY",  "MELI":"XLY",  "SE":"XLY",
+    "EXPE":"XLY",  "CELH":"XLY",
+    # Utilities / Power
+    "NEE":"XLU",   "ICLN":"XLU",  "VST":"XLU",   "CEG":"XLU",
+    "NRG":"XLU",
+    # Solar
+    "FSLR":"TAN",  "ENPH":"TAN",  "SEDG":"TAN",  "TAN":"TAN",
+    # Industrials
+    "VRT":"XLI",   "ETN":"XLI",   "GEV":"XLI",   "PWR":"XLI",
+    "ACHR":"XLI",  "GE":"XLI",    "BA":"XLI",
+    # Real Estate
+    "EQIX":"XLRE", "DLR":"XLRE",  "AMT":"XLRE",
+    # Defense
+    "LMT":"ITA",   "RTX":"ITA",   "NOC":"ITA",   "GD":"ITA",
+    "KTOS":"ITA",  "LDOS":"ITA",  "HII":"ITA",   "TDG":"ITA",
+    "ITA":"ITA",   "XAR":"XAR",   "RKLB":"ITA",  "ASTS":"ITA",
+    "LUNR":"ITA",
+    # Nuclear
+    "CCJ":"URA",   "NXE":"URA",   "LEU":"URA",   "SMR":"URA",
+    "OKLO":"URA",  "URA":"URA",   "URNM":"URA",
+    # Biotech / Healthcare
+    "LLY":"XBI",   "NVO":"XBI",   "VKTX":"XBI",  "RXRX":"XBI",
+    "ROIV":"XBI",  "XBI":"XBI",
+    # Financials
+    "GS":"XLF",    "JPM":"XLF",   "V":"XLF",     "MA":"XLF",
+    "PYPL":"XLF",  "AFRM":"XLF",  "HOOD":"XLF",  "IBKR":"XLF",
+    "SOFI":"XLF",  "NU":"XLF",    "COF":"XLF",   "COIN":"XLF",
+    # Consumer Staples
+    "COST":"XLP",  "WMT":"XLP",   "CELH":"XLP",
+    # Energy
+    "XOM":"XLE",   "CVX":"XLE",   "MPC":"XLE",
+    # Commodities / Materials
     "GLD":"GLD",   "IAU":"GLD",   "SLV":"SLV",
     "COPX":"XLB",  "WPM":"XLB",   "GOLD":"XLB",  "MP":"XLB",
     "ALB":"XLB",   "SQM":"XLB",
-    # Memory & Storage (hottest theme 2026)
-    "SNDK": "SMH",
-    "WDC":  "SMH",
-    "MU":   "SMH",
-    "STX":  "SMH",
-    "DRAM": "SMH",   # Roundhill Memory ETF
-
-    # Fintech / Banking
-    "SOFI": "XLF",
-    "NU":   "XLF",
-    "COF":  "XLF",
-
-    # Momentum leaders
-    "AXON": "XLK",
-    "CORT": "XLK",
-
-    # Energy
-    "NRG":  "XLU",
-    "MPC":  "XLE",
-    "NFLX": "XLC",   # Netflix — missing major momentum name
-    "WMT":  "XLP",   # Walmart — defensive momentum
-    "XOM":  "XLE",   # Exxon — oil cycle
-    "CVX":  "XLE",   # Chevron — oil cycle  
-    "AMT":  "XLRE",  # American Tower — REIT momentum
-    "COIN": "XLF",   # Coinbase — crypto/fintech missing
 }
 
 stocks = list(dict.fromkeys(sector_map.keys()))
@@ -540,6 +594,20 @@ def run_agent():
         )
         send_telegram(msg)
         return
+
+    # ---- VIX Regime Filter ----
+    vix = get_vix()
+    if vix > 30:
+        send_telegram(
+            f"⚠️ VIX={vix:.0f} — extreme fear mode\n"
+            f"Swing setups fail at high rates when VIX >30.\n"
+            f"Skipping scan — stay in cash.\n"
+            f"{datetime.now().strftime('%d %b %Y %H:%M')}"
+        )
+        return
+    # Half position size when VIX is elevated (25-30) to reduce exposure in choppy markets
+    effective_risk = RISK_PER_TRADE * (0.5 if vix > 25 else 1.0)
+    vix_label      = f"Elevated ({vix:.0f}) — half size" if vix > 25 else f"Normal ({vix:.0f})"
 
     print("\nChecking market breadth...")
     breadth = get_market_breadth()
@@ -564,12 +632,12 @@ def run_agent():
     spy_df = spy_df.dropna()
     spy_df.columns = spy_df.columns.get_level_values(0)
 
-    picks          = []
-    sector_counts  = {}          # correlation filter tracker
-    skipped_fund   = 0
-    skipped_sec    = 0
-    skipped_earn   = 0
-    skipped_corr   = 0
+    picks         = []
+    sector_counts = {}
+    skipped_fund  = 0
+    skipped_sec   = 0
+    skipped_earn  = 0
+    skipped_corr  = 0
 
     print(f"\nScanning {len(stocks)} stocks...")
 
@@ -590,11 +658,9 @@ def run_agent():
             skipped_earn += 1
             continue
 
-        result = check_stock(stock, spy_df, hot_sectors)
+        result = check_stock(stock, spy_df, hot_sectors, risk_pct=effective_risk)
 
         if result:
-            # ---- CORRELATION FILTER ----
-            # Max MAX_PER_SECTOR picks from same sector
             sec = result['Sector']
             if sector_counts.get(sec, 0) >= MAX_PER_SECTOR:
                 print(f"  {stock}: sector {sec} full ({MAX_PER_SECTOR}) — skip")
@@ -605,9 +671,10 @@ def run_agent():
             print(
                 f"  ✅ {result['Symbol']:6} [{result['Sector']:5}]"
                 f" score:{result['Score']:3}"
+                f" setup:{result['Setup']:20}"
                 f" MACD:{result['MACD']:12}"
                 f" OBV:{result['OBV']:12}"
-                f" candle:{result['Candle']}"
+                f" ADX:{result['ADX']}"
             )
             picks.append(result)
 
@@ -625,16 +692,17 @@ def run_agent():
         )
         return
 
-    picks    = sorted(picks, key=lambda x: (x['Score'], x['Reward$']), reverse=True)
-    hot_str  = ", ".join(sorted(hot_sectors)) if hot_sectors else "None"
+    picks   = sorted(picks, key=lambda x: (x['Score'], x['Reward$']), reverse=True)
+    hot_str = ", ".join(sorted(hot_sectors)) if hot_sectors else "None"
 
     send_telegram(
         f"📊 US PRO SCAN — {datetime.now().strftime('%d %b %Y %H:%M')}\n"
         f"{'='*34}\n"
-        f"S&P   : Bullish (EMA50 + EMA200)\n"
+        f"S&P    : Bullish (EMA50 + EMA200)\n"
+        f"VIX    : {vix_label}\n"
         f"Breadth: {breadth_label} ({breadth}%)\n"
-        f"Hot   : {hot_str}\n"
-        f"Setups: {len(picks)} found\n"
+        f"Hot    : {hot_str}\n"
+        f"Setups : {len(picks)} found\n"
         f"Top {min(TOP_PICKS,len(picks))} picks below — alerts only."
     )
 
@@ -643,15 +711,18 @@ def run_agent():
         msg = (
             f"{'='*34}\n"
             f"🚀 {pick['Symbol']}  [{pick['Sector']}]\n"
-            f"Score   : {pick['Score']}/42\n"
+            f"Setup   : {pick['Setup']}\n"
+            f"Score   : {pick['Score']}\n"
             f"Candle  : {pick['Candle']}\n"
             f"MACD    : {pick['MACD']}\n"
             f"OBV     : {pick['OBV']}\n"
+            f"ADX     : {pick['ADX']}\n"
+            f"Squeeze : {pick['Squeeze']}\n"
             f"Entry   : ${pick['Entry']}\n"
             f"Stop    : ${pick['Stop']}\n"
             f"Target  : ${pick['Target']}\n"
             f"Size    : {pick['Size']} shares\n"
-            f"Invested: ${int(pick['Invested']):,}\n"
+            f"Invested: ${int(pick['Invested']):,} ({pick['AcctPct']}%)\n"
             f"Risk    : ${int(pick['Risk$']):,}\n"
             f"Reward  : ${int(pick['Reward$']):,}\n"
             f"RR      : 1:{rr}\n"
@@ -669,7 +740,8 @@ def is_market_hours():
     if now_utc.weekday() > 4:
         return False
     time_val = now_utc.hour * 60 + now_utc.minute
-    return (12 * 60) <= time_val <= (20 * 60 + 30)
+    # 12:00 UTC (pre-open) to 21:30 UTC (includes the post-close EOD scan at 21:00 UTC)
+    return (12 * 60) <= time_val <= (21 * 60 + 30)
 
 if __name__ == "__main__":
     print("🚀 US Professional Swing Trading Agent")
