@@ -15,8 +15,12 @@ on:
     - cron: '30 14 * * 1-5'   # 8:00 PM IST
     - cron: '30 16 * * 1-5'   # 10:00 PM IST
     - cron: '30 18 * * 1-5'   # 12:00 AM IST
-    - cron: '00 21 * * 1-5'   # 2:30 AM IST — post-close EOD scan (most reliable — full candles)
+    - cron: '00 21 * * 1-5'   # 2:30 AM IST — post-close EOD scan (most reliable)
   workflow_dispatch:   # keep manual trigger for testing
+
+# Allow the workflow to push trade_log.csv back to the repo
+permissions:
+  contents: write
 
 jobs:
   run-agent:
@@ -26,6 +30,9 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          # Fetch full history so git push works cleanly
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -46,3 +53,14 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: python swing_trading_agent_us.py
+
+      # Commit trade_log.csv (and updated positions.csv if changed) back to repo
+      - name: Commit trade log
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add trade_log.csv positions.csv 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "📊 Trade log $(date +'%Y-%m-%d %H:%M UTC')"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

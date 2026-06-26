@@ -3,3 +3,5 @@ pandas
 ta
 requests
 schedule
+lxml
+html5lib

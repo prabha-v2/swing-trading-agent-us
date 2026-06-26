@@ -4,20 +4,34 @@ import ta
 import time
 import os
 import requests
-from datetime import datetime
+import csv
+import json
+from datetime import datetime, timedelta
+from pathlib import Path
 
 # =========================================
 # SETTINGS
 # =========================================
 
-ACCOUNT_SIZE     = 30000
-RISK_PER_TRADE   = 0.01
-RR_RATIO         = 2.5
-MAX_ATR_STOP     = 3.0
-MAX_POSITION_PCT = 0.15          # max 15% of account per trade ($4,500) — replaces share cap
-SCORE_THRESHOLD  = 22            # raised from 18 — requires stronger multi-indicator confluence
-TOP_PICKS        = 5
-MAX_PER_SECTOR   = 2
+ACCOUNT_SIZE      = 30000
+RISK_PER_TRADE    = 0.01
+RR_RATIO          = 2.5
+MAX_ATR_STOP      = 3.0
+MAX_POSITION_PCT  = 0.15          # max 15% of account per trade
+SCORE_THRESHOLD   = 22
+TOP_PICKS         = 5
+MAX_PER_SECTOR    = 2
+
+# Feature flags
+EXPAND_UNIVERSE   = True          # Fetch S&P 500 dynamically (adds ~350 extra stocks)
+NEWS_SENTIMENT    = True          # Score news headlines per pick
+CHECK_15MIN       = True          # Confirm setup on 15-min chart before alerting
+PORTFOLIO_FILE    = "positions.csv"
+TRADE_LOG_FILE    = "trade_log.csv"
+
+# Portfolio risk limits
+MAX_PORTFOLIO_HEAT  = 0.60        # max 60% of account deployed at once
+MAX_SECTOR_HEAT     = 0.20        # max 20% of account in any one sector
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 CHAT_ID        = os.environ.get("CHAT_ID", "")
@@ -34,6 +48,53 @@ def send_telegram(msg):
             print(f"⚠️ Telegram error: {resp.status_code}")
     except Exception as e:
         print(f"⚠️ Telegram failed: {e}")
+
+# =========================================
+# DYNAMIC UNIVERSE
+# =========================================
+
+# GICS sector name -> sector ETF code used in our system
+GICS_TO_ETF = {
+    "Information Technology":  "XLK",
+    "Financials":               "XLF",
+    "Energy":                   "XLE",
+    "Health Care":              "XLV",
+    "Industrials":              "XLI",
+    "Utilities":                "XLU",
+    "Materials":                "XLB",
+    "Real Estate":              "XLRE",
+    "Consumer Discretionary":   "XLY",
+    "Consumer Staples":         "XLP",
+    "Communication Services":   "XLC",
+}
+
+def get_dynamic_universe(base_sector_map):
+    """
+    Fetch S&P 500 from Wikipedia. Returns an extended sector_map that
+    combines the curated base_sector_map with the broader S&P 500.
+    """
+    print("\nFetching S&P 500 universe from Wikipedia...")
+    extended = dict(base_sector_map)   # start with curated list
+
+    try:
+        tables = pd.read_html(
+            "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
+            attrs={"id": "constituents"}
+        )
+        df = tables[0]
+        # Columns: Symbol, Security, GICS Sector, GICS Sub-Industry, ...
+        for _, row in df.iterrows():
+            sym  = str(row.get("Symbol", "")).strip().replace(".", "-")
+            gics = str(row.get("GICS Sector", "")).strip()
+            if sym and sym not in extended:
+                etf = GICS_TO_ETF.get(gics, "OTHER")
+                extended[sym] = etf
+
+        print(f"  Curated: {len(base_sector_map)} | S&P 500 added: {len(extended) - len(base_sector_map)} | Total: {len(extended)}")
+    except Exception as e:
+        print(f"  ⚠️ Wikipedia fetch failed ({e}) — using curated list only")
+
+    return extended
 
 # =========================================
 # VIX REGIME
@@ -242,7 +303,7 @@ def sector_is_strong(etf_symbol):
 # EARNINGS FILTER
 # =========================================
 
-def is_near_earnings(symbol, days=12):  # extended from 5 to 12 — stocks move unpredictably 2wks before earnings
+def is_near_earnings(symbol, days=12):
     if symbol in SKIP_FUNDAMENTAL:
         return False
     try:
@@ -267,10 +328,395 @@ def is_near_earnings(symbol, days=12):  # extended from 5 to 12 — stocks move 
     return False
 
 # =========================================
+# NEWS SENTIMENT
+# =========================================
+
+BULLISH_WORDS = [
+    "upgrade", "beat", "beats", "record", "breakout", "surge", "surges",
+    "growth", "strong", "buy", "bullish", "outperform", "raises", "raised",
+    "expands", "partnership", "contract", "wins", "launch", "profit",
+    "revenue beat", "guidance raised", "buyback", "dividend increase"
+]
+BEARISH_WORDS = [
+    "downgrade", "miss", "misses", "cut", "cuts", "warning", "weak",
+    "loss", "losses", "sell", "probe", "fine", "recall", "investigation",
+    "layoff", "layoffs", "guidance cut", "revenue miss", "bankruptcy",
+    "lawsuit", "fraud", "halt", "suspended"
+]
+
+def get_news_sentiment(symbol):
+    """
+    Fetch recent news headlines via yfinance and score them.
+    Returns (score_int, label_str, headlines_list).
+    Fail-open: returns (0, 'Neutral', []) on any error.
+    """
+    if symbol in SKIP_FUNDAMENTAL:
+        return 0, "N/A", []
+    try:
+        ticker = yf.Ticker(symbol)
+        news   = ticker.news
+        if not news:
+            return 0, "Neutral", []
+
+        score     = 0
+        headlines = []
+        for article in news[:6]:
+            title = article.get("title", "")
+            if not title:
+                continue
+            low = title.lower()
+            for w in BULLISH_WORDS:
+                if w in low:
+                    score += 1
+            for w in BEARISH_WORDS:
+                if w in low:
+                    score -= 1
+            headlines.append(title)
+
+        if score >= 2:
+            label = "Positive"
+        elif score <= -2:
+            label = "Negative"
+        elif score == 1:
+            label = "Slightly Positive"
+        elif score == -1:
+            label = "Slightly Negative"
+        else:
+            label = "Neutral"
+
+        return score, label, headlines[:3]
+
+    except Exception:
+        return 0, "Neutral", []
+
+# =========================================
+# 15-MIN CONFIRMATION
+# =========================================
+
+def passes_15min_check(symbol, daily_entry):
+    """
+    Confirm the daily setup is still valid on the 15-min chart.
+    Checks: price proximity, MACD direction, RSI range, volume.
+    Returns (passed: bool, reason: str).
+    Fail-open: returns (True, 'Data unavailable') on any error.
+    """
+    try:
+        df = yf.download(symbol, period="5d", interval="15m", progress=False)
+        if df is None or df.empty or len(df) < 30:
+            return True, "Data unavailable"
+
+        df = df.dropna()
+        df.columns = df.columns.get_level_values(0)
+        if len(df) < 30:
+            return True, "Insufficient bars"
+
+        current_price = float(df['Close'].iloc[-1])
+
+        # 1. Price proximity: must be within 3% of the daily entry zone
+        drift = (current_price - daily_entry) / daily_entry
+        if drift > 0.03:
+            return False, f"Price ran +{drift:.1%} above entry — chasing risk"
+        if drift < -0.04:
+            return False, f"Price dropped {drift:.1%} below entry — setup breaking"
+
+        # 2. MACD on 15-min must be bullish (above signal line)
+        macd_line   = ta.trend.macd(df['Close'], window_slow=26, window_fast=12)
+        macd_signal = ta.trend.macd_signal(df['Close'], window_slow=26, window_fast=12, window_sign=9)
+        macd_ok     = float(macd_line.iloc[-1]) > float(macd_signal.iloc[-1])
+
+        # 3. RSI on 15-min: momentum zone 45-78
+        rsi    = ta.momentum.rsi(df['Close'], window=14)
+        rsi_v  = float(rsi.iloc[-1])
+        rsi_ok = 45 < rsi_v < 78
+
+        # 4. Recent volume above its 20-bar average on 15-min
+        avg_vol = float(df['Volume'].iloc[-20:].mean())
+        cur_vol = float(df['Volume'].iloc[-3:].mean())   # last 45 min
+        vol_ok  = cur_vol >= avg_vol * 0.8               # at least 80% of avg
+
+        fails = []
+        if not macd_ok:  fails.append(f"15m MACD bearish")
+        if not rsi_ok:   fails.append(f"15m RSI={rsi_v:.0f}")
+        if not vol_ok:   fails.append(f"15m vol thin ({cur_vol/avg_vol:.0%} avg)")
+
+        if len(fails) >= 2:
+            return False, " | ".join(fails)
+        elif fails:
+            return True, f"⚠️ Minor: {fails[0]}"
+        else:
+            return True, f"✅ RSI={rsi_v:.0f}, MACD bullish, vol OK"
+
+    except Exception as e:
+        return True, f"Check skipped ({e})"
+
+# =========================================
+# PORTFOLIO RISK
+# =========================================
+
+def get_portfolio_positions():
+    """
+    Read current open positions from positions.csv.
+    Format: symbol, shares, entry_price, sector
+    Returns dict keyed by symbol.
+    """
+    pos_file = Path(PORTFOLIO_FILE)
+    if not pos_file.exists():
+        return {}
+
+    positions = {}
+    try:
+        with open(pos_file, newline='') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                sym = row.get('symbol', '').strip().upper()
+                if not sym:
+                    continue
+                try:
+                    positions[sym] = {
+                        'shares':  int(float(row.get('shares', 0))),
+                        'entry':   float(row.get('entry_price', 0)),
+                        'sector':  row.get('sector', 'OTHER').strip(),
+                    }
+                except (ValueError, KeyError):
+                    continue
+    except Exception as e:
+        print(f"⚠️ Could not read {PORTFOLIO_FILE}: {e}")
+
+    return positions
+
+def get_portfolio_heat(positions):
+    """
+    Calculate total deployed capital and per-sector exposure.
+    Returns (total_pct, sector_pct_dict, summary_str).
+    """
+    if not positions:
+        return 0.0, {}, "No open positions"
+
+    total_invested = 0.0
+    sector_invested = {}
+
+    for sym, pos in positions.items():
+        value = pos['shares'] * pos['entry']
+        total_invested += value
+        sec = pos['sector']
+        sector_invested[sec] = sector_invested.get(sec, 0.0) + value
+
+    total_pct  = total_invested / ACCOUNT_SIZE
+    sector_pct = {sec: v / ACCOUNT_SIZE for sec, v in sector_invested.items()}
+
+    lines = [f"Portfolio heat: {total_pct:.0%} deployed (${total_invested:,.0f})"]
+    for sec, pct in sorted(sector_pct.items(), key=lambda x: -x[1]):
+        bar = "🔴" if pct > MAX_SECTOR_HEAT else "🟡" if pct > MAX_SECTOR_HEAT * 0.7 else "🟢"
+        lines.append(f"  {bar} {sec}: {pct:.0%}")
+
+    return total_pct, sector_pct, "\n".join(lines)
+
+def pick_blocked_by_portfolio(pick, positions, sector_pct):
+    """
+    Return (blocked: bool, reason: str).
+    Blocks if: symbol already held, sector over limit, or total heat too high.
+    """
+    sym    = pick['Symbol']
+    sec    = pick['Sector']
+    invest = pick['Invested']
+
+    # Already holding this symbol
+    if sym in positions:
+        return True, f"{sym} already in portfolio"
+
+    # Adding this pick would push sector over limit
+    cur_sec_pct  = sector_pct.get(sec, 0.0)
+    new_sec_pct  = cur_sec_pct + (invest / ACCOUNT_SIZE)
+    if new_sec_pct > MAX_SECTOR_HEAT:
+        return True, f"{sec} sector would be {new_sec_pct:.0%} > {MAX_SECTOR_HEAT:.0%} limit"
+
+    return False, ""
+
+# =========================================
+# TRADE LOGGING
+# =========================================
+
+TRADE_LOG_FIELDS = [
+    'date', 'symbol', 'sector', 'setup', 'score',
+    'entry', 'stop', 'target', 'size', 'invested',
+    'risk_usd', 'reward_usd', 'rr',
+    'news_sentiment', 'confirmed_15m',
+    'outcome', 'outcome_date', 'exit_price', 'pnl_usd', 'pnl_pct'
+]
+
+def log_picks(picks, confirmed_map, sentiment_map):
+    """Append today's picks to trade_log.csv (won't duplicate same symbol+date)."""
+    log_file   = Path(TRADE_LOG_FILE)
+    today_str  = datetime.now().strftime('%Y-%m-%d')
+    file_exists = log_file.exists()
+
+    # Load existing entries to avoid duplicates
+    existing = set()
+    if file_exists:
+        try:
+            with open(log_file, newline='') as f:
+                for row in csv.DictReader(f):
+                    existing.add((row.get('date',''), row.get('symbol','')))
+        except Exception:
+            pass
+
+    with open(log_file, 'a', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=TRADE_LOG_FIELDS)
+        if not file_exists:
+            writer.writeheader()
+
+        for pick in picks:
+            sym = pick['Symbol']
+            if (today_str, sym) in existing:
+                continue  # already logged today
+            rr = round(pick['Reward$'] / pick['Risk$'], 2) if pick['Risk$'] > 0 else 0
+            writer.writerow({
+                'date':           today_str,
+                'symbol':         sym,
+                'sector':         pick['Sector'],
+                'setup':          pick['Setup'],
+                'score':          pick['Score'],
+                'entry':          pick['Entry'],
+                'stop':           pick['Stop'],
+                'target':         pick['Target'],
+                'size':           pick['Size'],
+                'invested':       int(pick['Invested']),
+                'risk_usd':       int(pick['Risk$']),
+                'reward_usd':     int(pick['Reward$']),
+                'rr':             rr,
+                'news_sentiment': sentiment_map.get(sym, ('', 'N/A', []))[1],
+                'confirmed_15m':  'Yes' if confirmed_map.get(sym, (True,''))[0] else 'No',
+                'outcome':        '',
+                'outcome_date':   '',
+                'exit_price':     '',
+                'pnl_usd':        '',
+                'pnl_pct':        '',
+            })
+
+    print(f"📋 Logged {len(picks)} picks to {TRADE_LOG_FILE}")
+
+def update_trade_outcomes():
+    """
+    For every open trade in trade_log.csv (outcome == ''),
+    fetch the current price and check if target or stop has been hit.
+    Fills in outcome, exit_price, pnl_usd, pnl_pct, outcome_date.
+    """
+    log_file = Path(TRADE_LOG_FILE)
+    if not log_file.exists():
+        return
+
+    rows     = []
+    updated  = 0
+    today_str = datetime.now().strftime('%Y-%m-%d')
+
+    try:
+        with open(log_file, newline='') as f:
+            rows = list(csv.DictReader(f))
+    except Exception as e:
+        print(f"⚠️ Could not read trade log: {e}")
+        return
+
+    for row in rows:
+        if row.get('outcome', '').strip():
+            continue   # already closed
+
+        sym    = row.get('symbol', '')
+        entry  = float(row.get('entry', 0) or 0)
+        stop   = float(row.get('stop', 0) or 0)
+        target = float(row.get('target', 0) or 0)
+        size   = int(float(row.get('size', 0) or 0))
+
+        if not sym or entry <= 0:
+            continue
+
+        try:
+            df = yf.download(sym, period="5d", interval="1d", progress=False)
+            if df is None or df.empty:
+                continue
+            df = df.dropna()
+            df.columns = df.columns.get_level_values(0)
+
+            # Check high/low of last bar to see if stop or target was reached
+            last   = df.iloc[-1]
+            hi     = float(last['High'])
+            lo     = float(last['Low'])
+            close  = float(last['Close'])
+
+            outcome    = ''
+            exit_price = close
+
+            if lo <= stop:
+                outcome    = 'STOPPED'
+                exit_price = stop
+            elif hi >= target:
+                outcome    = 'TARGET HIT'
+                exit_price = target
+
+            if outcome:
+                pnl_usd = round((exit_price - entry) * size, 2)
+                pnl_pct = round((exit_price - entry) / entry * 100, 2)
+                row['outcome']      = outcome
+                row['outcome_date'] = today_str
+                row['exit_price']   = exit_price
+                row['pnl_usd']      = pnl_usd
+                row['pnl_pct']      = pnl_pct
+                updated += 1
+                emoji = "✅" if outcome == 'TARGET HIT' else "❌"
+                print(f"  {emoji} {sym}: {outcome} | P&L ${pnl_usd:+.0f} ({pnl_pct:+.1f}%)")
+            else:
+                # Still open — update unrealized P&L
+                unreal = round((close - entry) * size, 2)
+                unreal_pct = round((close - entry) / entry * 100, 2)
+                print(f"  🔄 {sym}: open | price ${close:.2f} | unrealized ${unreal:+.0f} ({unreal_pct:+.1f}%)")
+
+        except Exception as e:
+            print(f"  ⚠️ {sym} outcome check failed: {e}")
+            continue
+
+    if updated > 0:
+        # Write all rows back (with updated outcomes)
+        try:
+            with open(log_file, 'w', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=TRADE_LOG_FIELDS)
+                writer.writeheader()
+                writer.writerows(rows)
+            print(f"📋 Updated {updated} trade outcome(s) in {TRADE_LOG_FILE}")
+        except Exception as e:
+            print(f"⚠️ Could not write trade log: {e}")
+
+def print_trade_stats():
+    """Print a simple win-rate / P&L summary from closed trades."""
+    log_file = Path(TRADE_LOG_FILE)
+    if not log_file.exists():
+        return
+
+    try:
+        with open(log_file, newline='') as f:
+            rows = list(csv.DictReader(f))
+    except Exception:
+        return
+
+    closed = [r for r in rows if r.get('outcome', '').strip() in ('TARGET HIT', 'STOPPED')]
+    if not closed:
+        return
+
+    wins  = [r for r in closed if r['outcome'] == 'TARGET HIT']
+    total = len(closed)
+    win_r = len(wins) / total * 100
+
+    try:
+        pnls  = [float(r['pnl_usd']) for r in closed if r.get('pnl_usd')]
+        net   = sum(pnls)
+        avg   = net / len(pnls) if pnls else 0
+        print(f"\n📈 Trade History: {total} closed | Win rate: {win_r:.0f}% | Net P&L: ${net:+,.0f} | Avg: ${avg:+.0f}")
+    except Exception:
+        print(f"\n📈 Trade History: {total} closed | Win rate: {win_r:.0f}%")
+
+# =========================================
 # MAIN TECHNICAL SCANNER
 # =========================================
 
-def check_stock(symbol, spy_df, hot_sectors, risk_pct=RISK_PER_TRADE):
+def check_stock(symbol, spy_df, hot_sectors, active_sector_map, risk_pct=RISK_PER_TRADE):
     try:
         df = yf.download(symbol, period="2y", interval="1d", progress=False)
         if df is None or df.empty or len(df) < 250:
@@ -304,12 +750,9 @@ def check_stock(symbol, spy_df, hot_sectors, risk_pct=RISK_PER_TRADE):
         ).combine(abs(df['Low']  - df['Close'].shift(1)), max)
         df['ATR'] = df['TR'].rolling(14).mean()
 
-        # ---- ADX (Average Directional Index — trend strength) ----
         df['ADX'] = ta.trend.adx(df['High'], df['Low'], df['Close'], window=14)
         adx_val   = float(df['ADX'].iloc[-1]) if not pd.isna(df['ADX'].iloc[-1]) else 20.0
 
-        # ---- Bollinger Band Squeeze ----
-        # When bands are at their tightest in 60 days, a big move is coiling
         df['BB_upper'] = ta.volatility.bollinger_hband(df['Close'], window=20, window_dev=2)
         df['BB_lower'] = ta.volatility.bollinger_lband(df['Close'], window=20, window_dev=2)
         df['BB_width'] = (df['BB_upper'] - df['BB_lower']) / df['Close']
@@ -318,14 +761,12 @@ def check_stock(symbol, spy_df, hot_sectors, risk_pct=RISK_PER_TRADE):
             pct20      = float(df['BB_width'].iloc[-60:].quantile(0.20))
             bb_squeeze = float(df['BB_width'].iloc[-1]) < pct20
 
-        # ---- OBV (On-Balance Volume) ----
         df['OBV']       = ta.volume.on_balance_volume(df['Close'], df['Volume'])
         df['OBV_EMA20'] = ta.trend.ema_indicator(df['OBV'], window=20)
         obv_rising      = float(df['OBV'].iloc[-1]) > float(df['OBV_EMA20'].iloc[-1])
-        obv_slope       = float(df['OBV'].iloc[-1]) - float(df['OBV'].iloc[-10])  # slope avoids pct_change bug on negative OBV
+        obv_slope       = float(df['OBV'].iloc[-1]) - float(df['OBV'].iloc[-10])
         obv_trend_pos   = obv_slope > 0
 
-        # ---- MACD ----
         macd_line   = ta.trend.macd(df['Close'], window_slow=26, window_fast=12)
         macd_signal = ta.trend.macd_signal(df['Close'], window_slow=26, window_fast=12, window_sign=9)
         macd_hist   = ta.trend.macd_diff(df['Close'], window_slow=26, window_fast=12, window_sign=9)
@@ -341,7 +782,6 @@ def check_stock(symbol, spy_df, hot_sectors, risk_pct=RISK_PER_TRADE):
         macd_above_sig   = macd_now > macd_sig_now
         macd_hist_rising = macd_hist_now > macd_hist_prv and macd_hist_now > 0
 
-        # ---- Relative strength vs SPY ----
         s3  = df['Close'].pct_change(63).iloc[-1]
         s6  = df['Close'].pct_change(126).iloc[-1]
         s12 = df['Close'].pct_change(252).iloc[-1]
@@ -354,84 +794,69 @@ def check_stock(symbol, spy_df, hot_sectors, risk_pct=RISK_PER_TRADE):
         prev   = df.iloc[-2]
         score  = 0
 
-        # ---- RELATIVE STRENGTH ----
         if rs >= 2:  score += 2
         if rs == 3:  score += 1
 
-        # ---- EMA TREND STACK ----
         if latest['EMA10']  > latest['EMA20']:  score += 2
         if latest['EMA20']  > latest['EMA50']:  score += 2
         if latest['EMA50']  > latest['EMA200']: score += 2
         if latest['Close']  > latest['EMA50']:  score += 1
         if latest['Close']  > latest['EMA200']: score += 2
 
-        # ---- RSI (improved thresholds) ----
         rsi      = float(latest['RSI'])
         rsi_prev = float(prev['RSI'])
-        if rsi > 60 and rsi_prev < 60:         score += 2  # momentum breakout above 60
-        elif 55 < rsi < 75:                     score += 2  # strong momentum zone
-        elif 40 < rsi < 55 and rsi > rsi_prev: score += 1  # pullback reset recovering in uptrend
-        elif rsi > 80:                          score -= 2  # severely overbought — likely to stall
-        elif rsi < 40:                          score -= 1  # weak momentum
+        if rsi > 60 and rsi_prev < 60:         score += 2
+        elif 55 < rsi < 75:                     score += 2
+        elif 40 < rsi < 55 and rsi > rsi_prev: score += 1
+        elif rsi > 80:                          score -= 2
+        elif rsi < 40:                          score -= 1
 
-        # ---- BREAKOUT ----
         if latest['Close'] > prev['HH20']:  score += 2
         ath_dist = latest['Close'] / latest['High52']
         if ath_dist > 0.90:                 score += 2
         elif ath_dist > 0.80:              score += 1
 
-        # ---- VOLUME ----
         rvol = 0.0
         if latest['AvgVol'] > 0:
             rvol = latest['Volume'] / latest['AvgVol']
             if rvol > 2.0:    score += 2
             elif rvol > 1.5:  score += 1
 
-        # ---- ATR EXPANDING ----
         if latest['ATR'] > df['ATR'].iloc[-5]:  score += 1
 
-        # ---- ENTRY QUALITY ----
         dist = (latest['Close'] - latest['EMA20']) / latest['EMA20']
         if dist < 0.05:    score += 2
         elif dist < 0.08:  score += 1
         elif dist > 0.20:  score -= 1
 
-        # ---- 60-DAY OUTPERFORMANCE ----
         if len(df) >= 60 and len(spy_df) >= 60:
             sr = float(df['Close'].squeeze().pct_change(60).iloc[-1])
             nr = float(spy_df['Close'].squeeze().pct_change(60).iloc[-1])
             if sr > nr * 1.5:  score += 2
             elif sr > nr:      score += 1
 
-        # ---- DISTRIBUTION PENALTY ----
         recent_high = df['High'].iloc[-10:].max()
         if latest['Close'] < recent_high * 0.85:  score -= 2
 
-        # ---- OBV SCORING (slope-based — pct_change is invalid on negative OBV) ----
-        if obv_rising and obv_trend_pos:               score += 2  # institutions buying
-        elif obv_rising:                                score += 1  # OBV above its EMA only
-        elif not obv_trend_pos and not obv_rising:      score -= 2  # heavy distribution
+        if obv_rising and obv_trend_pos:               score += 2
+        elif obv_rising:                                score += 1
+        elif not obv_trend_pos and not obv_rising:      score -= 2
 
-        # ---- MACD SCORING ----
-        if macd_crossed_up:                             score += 2  # fresh crossover = best signal
-        elif macd_above_sig and macd_hist_rising:       score += 2  # above signal + accelerating
-        elif macd_above_sig:                            score += 1  # above signal only
-        elif not macd_above_sig and macd_hist_now < 0: score -= 1  # weak momentum
+        if macd_crossed_up:                             score += 2
+        elif macd_above_sig and macd_hist_rising:       score += 2
+        elif macd_above_sig:                            score += 1
+        elif not macd_above_sig and macd_hist_now < 0: score -= 1
 
-        # ---- ADX SCORING (trend strength filter) ----
-        if adx_val > 30:    score += 2  # strong trend — high conviction
-        elif adx_val > 20:  score += 1  # developing trend
-        elif adx_val < 15:  score -= 2  # choppy sideways action — penalize hard
+        if adx_val > 30:    score += 2
+        elif adx_val > 20:  score += 1
+        elif adx_val < 15:  score -= 2
 
-        # ---- BOLLINGER BAND SQUEEZE ----
-        if bb_squeeze:  score += 3  # volatility coiling — explosive move imminent
+        if bb_squeeze:  score += 3
 
-        # ---- CANDLE QUALITY ----
         candle_score = candle_quality_score(df)
         score += candle_score
 
-        # ---- SECTOR ROTATION BONUS ----
-        stock_sector = sector_map.get(symbol, "OTHER")
+        stock_sector = active_sector_map.get(symbol, "OTHER")
         if stock_sector in hot_sectors:  score += 2
 
         if score < SCORE_THRESHOLD:
@@ -440,7 +865,7 @@ def check_stock(symbol, spy_df, hot_sectors, risk_pct=RISK_PER_TRADE):
         # ---- POSITION SIZING ----
         entry          = float(latest['Close'])
         atr            = float(latest['ATR'])
-        ten_bar_low    = float(df['Low'].iloc[-10:].min())  # wider structural stop vs 5-bar
+        ten_bar_low    = float(df['Low'].iloc[-10:].min())
         atr_stop       = entry - (MAX_ATR_STOP * atr)
         stop           = max(ten_bar_low, atr_stop)
         risk           = entry - stop
@@ -448,7 +873,6 @@ def check_stock(symbol, spy_df, hot_sectors, risk_pct=RISK_PER_TRADE):
         if risk <= 0 or risk > entry * 0.12:
             return None
 
-        # Cap by both risk% and max dollar allocation (prevents 500 shares of $200 stock)
         max_by_dollars = int((ACCOUNT_SIZE * MAX_POSITION_PCT) / entry)
         size           = min(int((ACCOUNT_SIZE * risk_pct) / risk), max_by_dollars)
         if size <= 0:
@@ -458,7 +882,6 @@ def check_stock(symbol, spy_df, hot_sectors, risk_pct=RISK_PER_TRADE):
         invested = round(entry * size, 0)
         acct_pct = round((invested / ACCOUNT_SIZE) * 100, 1)
 
-        # ---- SETUP TYPE ----
         if bb_squeeze and latest['Close'] > prev['HH20']:
             setup_type = "Squeeze Breakout"
         elif latest['Close'] > prev['HH20'] and rvol > 2.0:
@@ -472,7 +895,6 @@ def check_stock(symbol, spy_df, hot_sectors, risk_pct=RISK_PER_TRADE):
         else:
             setup_type = "Trend Continuation"
 
-        # ---- LABELS ----
         if candle_score >= 3:    candle_label = "Strong"
         elif candle_score >= 1:  candle_label = "Good"
         elif candle_score == 0:  candle_label = "Neutral"
@@ -512,7 +934,7 @@ def check_stock(symbol, spy_df, hot_sectors, risk_pct=RISK_PER_TRADE):
         return None
 
 # =========================================
-# STOCK UNIVERSE
+# STOCK UNIVERSE (curated base)
 # =========================================
 
 sector_map = {
@@ -575,8 +997,6 @@ sector_map = {
     "ALB":"XLB",   "SQM":"XLB",
 }
 
-stocks = list(dict.fromkeys(sector_map.keys()))
-
 # =========================================
 # MAIN
 # =========================================
@@ -587,6 +1007,12 @@ def run_agent():
     print(f"US Pro Scan — {datetime.now().strftime('%d %b %Y %H:%M:%S')}")
     print(f"{'='*55}")
 
+    # ---- Step 0: Check open trade outcomes from prior runs ----
+    print("\nChecking open trade outcomes...")
+    update_trade_outcomes()
+    print_trade_stats()
+
+    # ---- Step 1: Market regime filters ----
     if not market_is_bullish():
         msg = (
             f"📉 S&P below EMA50/EMA200 — cash only\n"
@@ -595,7 +1021,6 @@ def run_agent():
         send_telegram(msg)
         return
 
-    # ---- VIX Regime Filter ----
     vix = get_vix()
     if vix > 30:
         send_telegram(
@@ -605,7 +1030,7 @@ def run_agent():
             f"{datetime.now().strftime('%d %b %Y %H:%M')}"
         )
         return
-    # Half position size when VIX is elevated (25-30) to reduce exposure in choppy markets
+
     effective_risk = RISK_PER_TRADE * (0.5 if vix > 25 else 1.0)
     vix_label      = f"Elevated ({vix:.0f}) — half size" if vix > 25 else f"Normal ({vix:.0f})"
 
@@ -626,29 +1051,50 @@ def run_agent():
     print("\nChecking sector rotation...")
     hot_sectors = get_sector_rotation()
 
+    # ---- Step 2: Build universe ----
+    active_sector_map = get_dynamic_universe(sector_map) if EXPAND_UNIVERSE else dict(sector_map)
+    all_stocks = list(dict.fromkeys(active_sector_map.keys()))
+
+    # ---- Step 3: Portfolio risk snapshot ----
+    positions          = get_portfolio_positions()
+    total_heat, sector_pct, heat_summary = get_portfolio_heat(positions)
+    print(f"\n{heat_summary}")
+
+    if total_heat >= MAX_PORTFOLIO_HEAT:
+        msg = (
+            f"🔴 Portfolio fully deployed ({total_heat:.0%}) — no new entries\n"
+            f"Max heat: {MAX_PORTFOLIO_HEAT:.0%}\n"
+            f"{datetime.now().strftime('%d %b %Y %H:%M')}"
+        )
+        send_telegram(msg)
+        return
+
+    # ---- Step 4: SPY reference ----
     spy_df = yf.download("^GSPC", period="1y", interval="1d", progress=False)
     if spy_df is None or spy_df.empty:
         return
     spy_df = spy_df.dropna()
     spy_df.columns = spy_df.columns.get_level_values(0)
 
+    # ---- Step 5: Scan ----
     picks         = []
     sector_counts = {}
     skipped_fund  = 0
     skipped_sec   = 0
     skipped_earn  = 0
     skipped_corr  = 0
+    skipped_port  = 0
 
-    print(f"\nScanning {len(stocks)} stocks...")
+    print(f"\nScanning {len(all_stocks)} stocks...")
 
-    for stock in stocks:
+    for stock in all_stocks:
         time.sleep(0.8)
 
         if not passes_fundamental_filter(stock):
             skipped_fund += 1
             continue
 
-        etf = sector_map.get(stock, "OTHER")
+        etf = active_sector_map.get(stock, "OTHER")
         if etf not in {"OTHER","GLD","SLV"}:
             if not sector_is_strong(etf):
                 skipped_sec += 1
@@ -658,9 +1104,16 @@ def run_agent():
             skipped_earn += 1
             continue
 
-        result = check_stock(stock, spy_df, hot_sectors, risk_pct=effective_risk)
+        result = check_stock(stock, spy_df, hot_sectors, active_sector_map, risk_pct=effective_risk)
 
         if result:
+            # Portfolio concentration check
+            blocked, block_reason = pick_blocked_by_portfolio(result, positions, sector_pct)
+            if blocked:
+                print(f"  {stock}: portfolio block — {block_reason}")
+                skipped_port += 1
+                continue
+
             sec = result['Sector']
             if sector_counts.get(sec, 0) >= MAX_PER_SECTOR:
                 print(f"  {stock}: sector {sec} full ({MAX_PER_SECTOR}) — skip")
@@ -679,9 +1132,9 @@ def run_agent():
             picks.append(result)
 
     print(f"\n{'='*55}")
-    print(f"Scanned:{len(stocks)} Fund❌:{skipped_fund} "
+    print(f"Scanned:{len(all_stocks)} Fund❌:{skipped_fund} "
           f"Sector❌:{skipped_sec} Earn❌:{skipped_earn} "
-          f"Corr❌:{skipped_corr} ✅:{len(picks)}")
+          f"Corr❌:{skipped_corr} Port❌:{skipped_port} ✅:{len(picks)}")
     print(f"{'='*55}")
 
     if not picks:
@@ -692,8 +1145,36 @@ def run_agent():
         )
         return
 
-    picks   = sorted(picks, key=lambda x: (x['Score'], x['Reward$']), reverse=True)
+    picks = sorted(picks, key=lambda x: (x['Score'], x['Reward$']), reverse=True)
+
+    # ---- Step 6: News sentiment + 15-min confirmation on top picks ----
+    top_picks      = picks[:TOP_PICKS]
+    sentiment_map  = {}   # symbol -> (score, label, headlines)
+    confirmed_map  = {}   # symbol -> (bool, reason)
+
+    print(f"\nRunning post-scan checks on top {len(top_picks)} picks...")
+    for pick in top_picks:
+        sym = pick['Symbol']
+
+        if NEWS_SENTIMENT:
+            ns, nl, nh = get_news_sentiment(sym)
+            sentiment_map[sym] = (ns, nl, nh)
+            print(f"  📰 {sym} news: {nl} (score {ns:+d})")
+            time.sleep(0.3)
+
+        if CHECK_15MIN:
+            ok, reason = passes_15min_check(sym, pick['Entry'])
+            confirmed_map[sym] = (ok, reason)
+            status = "✅" if ok else "❌"
+            print(f"  {status} {sym} 15m: {reason}")
+            time.sleep(0.5)
+
+    # ---- Step 7: Log picks ----
+    log_picks(top_picks, confirmed_map, sentiment_map)
+
+    # ---- Step 8: Telegram alerts ----
     hot_str = ", ".join(sorted(hot_sectors)) if hot_sectors else "None"
+    pos_str = f"{len(positions)} open" if positions else "None"
 
     send_telegram(
         f"📊 US PRO SCAN — {datetime.now().strftime('%d %b %Y %H:%M')}\n"
@@ -702,15 +1183,36 @@ def run_agent():
         f"VIX    : {vix_label}\n"
         f"Breadth: {breadth_label} ({breadth}%)\n"
         f"Hot    : {hot_str}\n"
+        f"Portfolio: {pos_str} | Heat: {total_heat:.0%}\n"
+        f"Universe : {len(all_stocks)} stocks scanned\n"
         f"Setups : {len(picks)} found\n"
-        f"Top {min(TOP_PICKS,len(picks))} picks below — alerts only."
+        f"Top {len(top_picks)} picks below — alerts only."
     )
 
-    for pick in picks[:TOP_PICKS]:
-        rr  = round(pick['Reward$'] / pick['Risk$'], 1) if pick['Risk$'] > 0 else 0
+    for pick in top_picks:
+        sym  = pick['Symbol']
+        rr   = round(pick['Reward$'] / pick['Risk$'], 1) if pick['Risk$'] > 0 else 0
+
+        # News block
+        ns, nl, headlines = sentiment_map.get(sym, (0, "N/A", []))
+        news_emoji = "📰✅" if ns >= 2 else "📰⚠️" if ns <= -2 else "📰"
+        news_block = f"{news_emoji} News   : {nl}"
+        if headlines:
+            news_block += f"\n  → {headlines[0][:60]}"
+
+        # 15min confirmation block
+        ok15, reason15 = confirmed_map.get(sym, (True, "Not checked"))
+        conf_emoji = "✅" if ok15 else "⚠️"
+        conf_block = f"{conf_emoji} 15m    : {reason15}"
+
+        # Negative news hard warning
+        news_warn = ""
+        if ns <= -2:
+            news_warn = "\n⚠️ NEGATIVE NEWS — review headlines before entering"
+
         msg = (
             f"{'='*34}\n"
-            f"🚀 {pick['Symbol']}  [{pick['Sector']}]\n"
+            f"🚀 {sym}  [{pick['Sector']}]\n"
             f"Setup   : {pick['Setup']}\n"
             f"Score   : {pick['Score']}\n"
             f"Candle  : {pick['Candle']}\n"
@@ -718,6 +1220,8 @@ def run_agent():
             f"OBV     : {pick['OBV']}\n"
             f"ADX     : {pick['ADX']}\n"
             f"Squeeze : {pick['Squeeze']}\n"
+            f"{news_block}\n"
+            f"{conf_block}\n"
             f"Entry   : ${pick['Entry']}\n"
             f"Stop    : ${pick['Stop']}\n"
             f"Target  : ${pick['Target']}\n"
@@ -725,7 +1229,8 @@ def run_agent():
             f"Invested: ${int(pick['Invested']):,} ({pick['AcctPct']}%)\n"
             f"Risk    : ${int(pick['Risk$']):,}\n"
             f"Reward  : ${int(pick['Reward$']):,}\n"
-            f"RR      : 1:{rr}\n"
+            f"RR      : 1:{rr}"
+            f"{news_warn}\n"
             f"{'='*34}"
         )
         send_telegram(msg)
@@ -740,7 +1245,6 @@ def is_market_hours():
     if now_utc.weekday() > 4:
         return False
     time_val = now_utc.hour * 60 + now_utc.minute
-    # 12:00 UTC (pre-open) to 21:30 UTC (includes the post-close EOD scan at 21:00 UTC)
     return (12 * 60) <= time_val <= (21 * 60 + 30)
 
 if __name__ == "__main__":
