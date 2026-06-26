@@ -1,0 +1,6 @@
+date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_usd,rr,news_sentiment,confirmed_15m,outcome,outcome_date,exit_price,pnl_usd,pnl_pct
+2026-06-26,PANW,XLK,Squeeze Breakout,30,304.2,271.49,385.98,9,2738,294,736,2.5,Neutral,Yes,,,,,
+2026-06-26,LLY,XBI,ATH Breakout,29,1206.51,1092.25,1492.16,2,2413,229,571,2.49,Neutral,Yes,,,,,
+2026-06-26,GE,XLI,ATH Breakout,27,369.0,335.72,452.2,9,3321,300,749,2.5,Neutral,Yes,,,,,
+2026-06-26,CRWD,XLK,EMA20 Pullback,26,701.09,660.92,801.52,6,4207,241,603,2.5,Neutral,Yes,,,,,
+2026-06-26,NEE,XLU,EMA20 Pullback,26,88.56,84.88,97.76,50,4428,184,460,2.5,Neutral,Yes,,,,,
