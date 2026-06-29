@@ -4,3 +4,8 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-06-26,GE,XLI,ATH Breakout,27,369.0,335.72,452.2,9,3321,300,749,2.5,Neutral,Yes,,,,,
 2026-06-26,CRWD,XLK,EMA20 Pullback,26,701.09,660.92,801.52,6,4207,241,603,2.5,Neutral,Yes,,,,,
 2026-06-26,NEE,XLU,EMA20 Pullback,26,88.56,84.88,97.76,50,4428,184,460,2.5,Neutral,Yes,,,,,
+2026-06-29,ROIV,XBI,ATH Breakout,33,34.73,31.14,43.7,83,2883,298,744,2.5,Neutral,Yes,,,,,
+2026-06-29,LLY,XBI,ATH Breakout,32,1229.93,1119.15,1506.87,2,2460,222,554,2.5,Neutral,Yes,,,,,
+2026-06-29,PANW,XLK,ATH Breakout,30,332.0,292.75,430.12,7,2324,275,687,2.5,Neutral,Yes,,,,,
+2026-06-29,SOXX,SOXX,EMA20 Pullback,27,614.35,571.6,721.22,7,4300,299,748,2.5,N/A,Yes,STOPPED,2026-06-29,571.6,-299.25,-6.96
+2026-06-29,GE,XLI,ATH Breakout,27,373.71,341.96,453.08,9,3363,286,714,2.5,Neutral,Yes,,,,,
