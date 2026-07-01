@@ -14,3 +14,8 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-06-30,PANW,XLK,ATH Breakout,29,341.02,301.79,439.1,7,2387,275,687,2.5,Neutral,Yes,,,,,
 2026-06-30,SOXX,SOXX,ATH Breakout,26,640.76,571.6,813.66,4,2563,277,692,2.5,N/A,Yes,,,,,
 2026-06-30,LLY,XBI,ATH Breakout,26,1199.43,1088.01,1477.98,2,2399,223,557,2.5,Neutral,No,,,,,
+2026-07-01,V,XLF,ATH Breakout,28,351.08,328.8,406.78,12,4213,267,668,2.5,Neutral,Yes,,,,,
+2026-07-01,LLY,XBI,EMA20 Pullback,28,1191.74,1079.22,1473.04,2,2383,225,563,2.5,Neutral,Yes,,,,,
+2026-07-01,FTNT,XLK,ATH Breakout,26,158.98,141.19,203.47,16,2544,285,712,2.5,Neutral,Yes,,,,,
+2026-07-01,PANW,XLK,ATH Breakout,26,352.04,311.78,452.7,7,2464,282,705,2.5,Neutral,Yes,,,,,
+2026-07-01,GE,XLI,ATH Breakout,24,374.94,347.77,442.87,11,4124,299,747,2.5,Neutral,Yes,,,,,
