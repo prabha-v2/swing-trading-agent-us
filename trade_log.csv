@@ -35,3 +35,8 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-07-06,GD,ITA,ATH Breakout,26,376.88,351.27,440.92,11,4146,282,704,2.5,Neutral,Yes,,,,,
 2026-07-06,V,XLF,ATH Breakout,25,357.25,332.02,420.34,11,3930,278,694,2.5,Neutral,Yes,,,,,
 2026-07-06,LLY,XBI,EMA20 Pullback,25,1200.06,1086.27,1484.54,2,2400,228,569,2.5,Neutral,Yes,,,,,
+2026-07-07,ROIV,XBI,ATH Breakout,27,36.31,32.57,45.67,80,2905,299,749,2.51,Neutral,Yes,,,,,
+2026-07-07,DELL,XLK,EMA20 Pullback,27,417.28,378.66,513.83,7,2921,270,676,2.5,Neutral,Yes,,,,,
+2026-07-07,LLY,XBI,ATH Breakout,26,1235.56,1116.6,1532.97,2,2471,238,595,2.5,Neutral,Yes,,,,,
+2026-07-07,V,XLF,EMA20 Pullback,23,352.2,327.22,414.65,12,4226,300,749,2.5,Neutral,Yes,,,,,
+2026-07-07,FTNT,XLK,ATH Breakout,22,158.67,143.47,196.67,19,3015,289,722,2.5,Neutral,No,,,,,
