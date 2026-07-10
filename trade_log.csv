@@ -50,3 +50,8 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-07-09,AMD,SMH,EMA20 Pullback,27,546.72,495.35,675.14,5,2734,257,642,2.5,Neutral,Yes,,,,,
 2026-07-09,FTNT,XLK,ATH Breakout,26,163.73,144.62,211.5,15,2456,287,717,2.5,Neutral,Yes,,,,,
 2026-07-09,V,XLF,EMA20 Pullback,25,348.2,330.07,393.53,12,4178,218,544,2.5,Neutral,Yes,,,,,
+2026-07-10,MPC,XLE,ATH Breakout,26,283.62,258.99,345.19,12,3403,296,739,2.5,Neutral,Yes,,,,,
+2026-07-10,AMD,SMH,ATH Breakout,26,558.07,495.35,714.87,4,2232,251,627,2.5,Neutral,Yes,,,,,
+2026-07-10,CORT,XLK,ATH Breakout,25,91.94,82.31,116.02,31,2850,299,746,2.49,Neutral,Yes,,,,,
+2026-07-10,ROIV,XBI,ATH Breakout,24,35.97,33.61,41.87,125,4496,295,738,2.5,Neutral,Yes,,,,,
+2026-07-10,NVDA,SMH,EMA20 Pullback,24,210.49,190.11,261.45,14,2947,285,713,2.5,Neutral,Yes,,,,,
