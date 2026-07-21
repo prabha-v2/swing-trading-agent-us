@@ -76,3 +76,8 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-07-20,MPC,XLE,ATH Breakout,25,315.36,289.2,380.76,11,3469,288,719,2.5,Neutral,Yes,,,,,
 2026-07-20,SNOW,XLK,ATH Breakout,24,274.34,253.0,327.69,14,3841,299,747,2.5,Neutral,Yes,,,,,
 2026-07-20,S,XLK,Trend Continuation,22,19.45,17.2,25.09,133,2588,300,750,2.5,Neutral,No,,,,,
+2026-07-21,JPM,XLF,EMA20 Pullback,28,345.15,325.75,393.65,13,4487,252,630,2.5,Neutral,Yes,,,,,
+2026-07-21,MPC,XLE,ATH Breakout,26,319.73,293.93,384.23,11,3517,284,709,2.5,Neutral,Yes,,,,,
+2026-07-21,LLY,XBI,EMA20 Pullback,26,1175.15,1134.4,1277.01,3,3525,122,306,2.51,Neutral,Yes,,,,,
+2026-07-21,ROIV,XBI,EMA20 Pullback,25,34.96,33.56,38.47,128,4475,179,449,2.51,Neutral,Yes,,,,,
+2026-07-21,XOM,XLE,Trend Continuation,23,151.72,141.95,176.14,29,4400,283,708,2.5,Neutral,Yes,,,,,
