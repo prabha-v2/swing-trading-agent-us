@@ -72,7 +72,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-07-15,AMZN,XLK,EMA20 Pullback,25,254.36,234.9,303.01,15,3815,292,730,2.5,Neutral,Yes,,,,,
 2026-07-15,AMD,SMH,EMA20 Pullback,24,530.19,498.15,610.29,8,4242,256,641,2.5,Neutral,Yes,,,,,
 2026-07-15,ROIV,XBI,EMA20 Pullback,24,34.9,34.29,36.43,128,4467,78,195,2.5,Neutral,Yes,STOPPED,2026-07-20,34.29,-78.08,-1.75
-2026-07-15,LYFT,XLY,Trend Continuation,24,16.23,14.73,19.97,200,3246,299,747,2.5,Neutral,Yes,,,,,
+2026-07-15,LYFT,XLY,Trend Continuation,24,16.23,14.73,19.97,200,3246,299,747,2.5,Neutral,Yes,STOPPED,2026-07-22,14.73,-300.0,-9.24
 2026-07-20,MPC,XLE,ATH Breakout,25,315.36,289.2,380.76,11,3469,288,719,2.5,Neutral,Yes,,,,,
 2026-07-20,SNOW,XLK,ATH Breakout,24,274.34,253.0,327.69,14,3841,299,747,2.5,Neutral,Yes,,,,,
 2026-07-20,S,XLK,Trend Continuation,22,19.45,17.2,25.09,133,2588,300,750,2.5,Neutral,No,,,,,
@@ -81,3 +81,8 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-07-21,LLY,XBI,EMA20 Pullback,26,1175.15,1134.4,1277.01,3,3525,122,306,2.51,Neutral,Yes,,,,,
 2026-07-21,ROIV,XBI,EMA20 Pullback,25,34.96,33.56,38.47,128,4475,179,449,2.51,Neutral,Yes,,,,,
 2026-07-21,XOM,XLE,Trend Continuation,23,151.72,141.95,176.14,29,4400,283,708,2.5,Neutral,Yes,,,,,
+2026-07-22,JPM,XLF,EMA20 Pullback,27,348.65,325.75,405.9,12,4184,275,687,2.5,Neutral,Yes,,,,,
+2026-07-22,ROIV,XBI,EMA20 Pullback,26,35.01,33.56,38.64,128,4481,186,465,2.5,Neutral,Yes,,,,,
+2026-07-22,NVDA,SMH,EMA20 Pullback,25,212.51,197.97,248.86,20,4250,291,727,2.5,Neutral,Yes,,,,,
+2026-07-22,NU,XLF,Squeeze Breakout,24,14.49,13.09,18.0,213,3086,299,748,2.5,Neutral,Yes,,,,,
+2026-07-22,NEE,XLU,EMA20 Pullback,24,89.54,86.84,96.29,50,4477,135,338,2.5,Neutral,Yes,,,,,
