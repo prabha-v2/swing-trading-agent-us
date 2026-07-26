@@ -1,9 +1,10 @@
 # Swing Trading Agent — Deployment Guide
 
 ## Files in this repo
-- `swing_trading_agent.py` — main trading agent
+- `swing_trading_agent_us.py` — main trading agent
+- `backtest.py` — backtesting module
 - `requirements.txt` — Python dependencies
-- `.github/workflows/run_agent.yml` — runs the agent every 30 minutes via GitHub Actions
+- `.github/workflows/run_agent.yml` — runs the agent on a schedule via GitHub Actions (5 fixed times/day during US market hours — see the cron entries in the workflow file; each run scans once and exits)
 
 ## Setup Steps (do this once)
 

@@ -22,6 +22,15 @@ on:
 permissions:
   contents: write
 
+# Safety net: if a run ever takes long enough to overlap the next cron trigger,
+# cancel the older one instead of letting two scans (and two trade-log commits)
+# run concurrently. The main fix for the overlap is removing the script's
+# internal 30-min self-loop (see swing_trading_agent_us.py __main__), but this
+# is cheap insurance on top of that.
+concurrency:
+  group: swing-agent
+  cancel-in-progress: true
+
 jobs:
   run-agent:
     runs-on: ubuntu-latest

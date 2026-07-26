@@ -1,7 +1,6 @@
-yfinance
-pandas
-ta
-requests
-schedule
-lxml
-html5lib
+yfinance==1.5.2
+pandas==2.3.3
+ta==0.11.0
+requests==2.34.2
+lxml==6.1.1
+html5lib==1.1

@@ -50,6 +50,54 @@ def send_telegram(msg):
         print(f"⚠️ Telegram failed: {e}")
 
 # =========================================
+# BATCH DOWNLOAD HELPER
+# =========================================
+#
+# The dynamic universe (see below) pulls in the full S&P 500 on top of the
+# curated list — several hundred tickers. Downloading each one individually
+# (the original approach) means several hundred separate network round trips
+# per scan, which gets slower and more rate-limit-prone as the universe grows.
+# This helper fetches many tickers in a handful of batched/threaded calls
+# instead, and is reused for the main universe scan, market breadth, and
+# sector rotation/strength checks.
+
+def batch_download(tickers, period="2y", interval="1d", chunk_size=150):
+    """
+    Download OHLCV history for many tickers in as few yf.download() calls as
+    possible. Returns dict {symbol: DataFrame} with flat OHLCV columns
+    (dropna'd), only for symbols that returned usable data.
+    """
+    result  = {}
+    tickers = list(dict.fromkeys(tickers))  # dedupe, preserve order
+    for i in range(0, len(tickers), chunk_size):
+        chunk = tickers[i:i + chunk_size]
+        try:
+            raw = yf.download(
+                chunk, period=period, interval=interval,
+                group_by="ticker", threads=True, progress=False,
+            )
+        except Exception as e:
+            print(f"  ⚠️ batch download failed for chunk starting {chunk[0]}: {e}")
+            continue
+        if raw is None or raw.empty:
+            continue
+        if isinstance(raw.columns, pd.MultiIndex):
+            for sym in chunk:
+                try:
+                    sub = raw[sym].dropna(how="all")
+                    if not sub.empty:
+                        result[sym] = sub
+                except Exception:
+                    continue
+        else:
+            # yfinance collapses to single-level columns when a chunk has only 1 ticker
+            sym = chunk[0]
+            sub = raw.dropna(how="all")
+            if not sub.empty:
+                result[sym] = sub
+    return result
+
+# =========================================
 # DYNAMIC UNIVERSE
 # =========================================
 
@@ -86,8 +134,17 @@ def get_dynamic_universe(base_sector_map):
         for _, row in df.iterrows():
             sym  = str(row.get("Symbol", "")).strip().replace(".", "-")
             gics = str(row.get("GICS Sector", "")).strip()
+            sub  = str(row.get("GICS Sub-Industry", "")).strip()
             if sym and sym not in extended:
-                etf = GICS_TO_ETF.get(gics, "OTHER")
+                # Route semiconductors/biotech to their dedicated ETFs (matches how
+                # the curated list already treats e.g. NVDA->SMH, LLY->XBI) instead
+                # of lumping every new IT/Health Care name into XLK/XLV.
+                if "Semiconductor" in sub:
+                    etf = "SMH"
+                elif "Biotechnology" in sub:
+                    etf = "XBI"
+                else:
+                    etf = GICS_TO_ETF.get(gics, "OTHER")
                 extended[sym] = etf
 
         print(f"  Curated: {len(base_sector_map)} | S&P 500 added: {len(extended) - len(base_sector_map)} | Total: {len(extended)}")
@@ -125,18 +182,19 @@ def get_market_breadth():
     ]
     above_50 = 0
     total    = 0
+    frames = batch_download(sp500_sample, period="6mo", interval="1d")
     for sym in sp500_sample:
         try:
-            df = yf.download(sym, period="6mo", interval="1d", progress=False)
+            df = frames.get(sym)
+            if df is None or df.empty:
+                continue
             df = df.dropna()
-            df.columns = df.columns.get_level_values(0)
             if df.empty or len(df) < 50:
                 continue
             df['EMA50'] = ta.trend.ema_indicator(df['Close'], window=50)
             if float(df['Close'].iloc[-1]) > float(df['EMA50'].iloc[-1]):
                 above_50 += 1
             total += 1
-            time.sleep(0.3)
         except Exception:
             continue
     if total == 0:
@@ -150,6 +208,18 @@ def get_market_breadth():
 # =========================================
 
 def get_sector_rotation():
+    """
+    Computes 1-day, 1-week and 1-month returns per sector ETF (sector momentum),
+    plus a volume-trend flag used to mark "hot" sectors. Also piggybacks the
+    long-term EMA200 "sector strength" check onto the same download (strength_cache
+    below), so sector_is_strong() no longer needs a separate fresh download per stock.
+
+    Returns a 3-tuple:
+      hot_sectors    - set of ETF tickers flagged as currently hot (rotation bonus)
+      sector_perf    - dict {etf: {"name","ret_1d","ret_1w","ret_1m","vol_trend"}} —
+                       used to attach sector momentum (SectorDay/SectorWeek) to picks
+      strength_cache - dict {etf: bool} — close > EMA200, i.e. long-term sector strength
+    """
     sector_etfs = {
         "XLK":"Technology",   "XLF":"Financials",
         "XLE":"Energy",       "XLV":"Healthcare",
@@ -160,29 +230,43 @@ def get_sector_rotation():
         "ITA":"Defense",      "TAN":"Solar",
         "URA":"Nuclear",      "XBI":"Biotech",
     }
-    hot_sectors = set()
-    sector_perf = {}
+    hot_sectors    = set()
+    sector_perf    = {}
+    strength_cache = {}
+
+    # One batched download for all sector ETFs (1y so EMA200 strength can be derived
+    # from the same data — previously a separate fresh download per stock).
+    etf_frames = batch_download(list(sector_etfs.keys()), period="1y", interval="1d")
+
     for etf, name in sector_etfs.items():
         try:
-            df = yf.download(etf, period="3mo", interval="1d", progress=False)
+            df = etf_frames.get(etf)
+            if df is None or df.empty:
+                continue
             df = df.dropna()
-            df.columns = df.columns.get_level_values(0)
             if df.empty or len(df) < 21:
                 continue
+            ret_1d = float(df['Close'].pct_change(1).iloc[-1])
             ret_1w = float(df['Close'].pct_change(5).iloc[-1])
             ret_1m = float(df['Close'].pct_change(21).iloc[-1])
             avg_r  = float(df['Volume'].iloc[-5:].mean())
             avg_o  = float(df['Volume'].iloc[-21:-5].mean())
             vol_tr = avg_r / avg_o if avg_o > 0 else 1
             sector_perf[etf] = {
-                "name": name, "ret_1w": ret_1w,
+                "name": name, "ret_1d": ret_1d, "ret_1w": ret_1w,
                 "ret_1m": ret_1m, "vol_trend": vol_tr
             }
-            time.sleep(0.3)
+            if len(df) >= 200:
+                ema200 = ta.trend.ema_indicator(df['Close'], window=200)
+                strength_cache[etf] = float(df['Close'].iloc[-1]) > float(ema200.iloc[-1])
+            else:
+                strength_cache[etf] = True
         except Exception:
             continue
+
     if not sector_perf:
-        return hot_sectors
+        return hot_sectors, sector_perf, strength_cache
+
     all_1w = [v['ret_1w'] for v in sector_perf.values()]
     all_1m = [v['ret_1m'] for v in sector_perf.values()]
     med_1w = sorted(all_1w)[len(all_1w)//2]
@@ -193,8 +277,8 @@ def get_sector_rotation():
         if is_hot:
             hot_sectors.add(etf)
         flag = "🔥" if is_hot else "  "
-        print(f"  {flag} {etf:5} {d['name']:20} 1W:{d['ret_1w']:+.1%} 1M:{d['ret_1m']:+.1%}")
-    return hot_sectors
+        print(f"  {flag} {etf:5} {d['name']:20} 1D:{d['ret_1d']:+.1%} 1W:{d['ret_1w']:+.1%} 1M:{d['ret_1m']:+.1%}")
+    return hot_sectors, sector_perf, strength_cache
 
 # =========================================
 # CANDLE QUALITY
@@ -304,6 +388,14 @@ def sector_is_strong(etf_symbol):
 # =========================================
 
 def is_near_earnings(symbol, days=12):
+    # Note: yfinance's earnings calendar is a known weak spot — Yahoo doesn't always
+    # populate it, and lookups occasionally raise (network hiccup, rate limit,
+    # unexpected schema). We distinguish two cases:
+    #   1. Lookup succeeds but there's genuinely no calendar data -> not a failure,
+    #      don't skip.
+    #   2. Lookup itself raises -> we couldn't verify earnings status at all -> FAIL
+    #      CLOSED and skip the stock, rather than silently letting a possibly
+    #      pre-earnings stock through.
     if symbol in SKIP_FUNDAMENTAL:
         return False
     try:
@@ -323,9 +415,10 @@ def is_near_earnings(symbol, days=12):
         if diff <= days:
             print(f"⚠️ {symbol} earnings in {diff} days — skip")
             return True
-    except Exception:
-        pass
-    return False
+        return False
+    except Exception as e:
+        print(f"⚠️ {symbol}: earnings lookup failed ({e}) — skipping to be safe")
+        return True
 
 # =========================================
 # NEWS SENTIMENT
@@ -716,13 +809,15 @@ def print_trade_stats():
 # MAIN TECHNICAL SCANNER
 # =========================================
 
-def check_stock(symbol, spy_df, hot_sectors, active_sector_map, risk_pct=RISK_PER_TRADE):
+def check_stock(symbol, df, spy_df, hot_sectors, sector_perf, active_sector_map, risk_pct=RISK_PER_TRADE):
+    # `df` is now a pre-fetched, per-symbol OHLCV frame sliced out of a single batched
+    # universe download (see batch_download()/run_agent()) instead of a fresh
+    # individual yf.download() call per stock — the main perf change for the
+    # dynamic (S&P 500-sized) universe.
     try:
-        df = yf.download(symbol, period="2y", interval="1d", progress=False)
         if df is None or df.empty or len(df) < 250:
             return None
         df = df.dropna()
-        df.columns = df.columns.get_level_values(0)
         if df.empty or len(df) < 250:
             return None
 
@@ -909,15 +1004,22 @@ def check_stock(symbol, spy_df, hot_sectors, active_sector_map, risk_pct=RISK_PE
 
         adx_label = f"{adx_val:.0f} ({'Strong' if adx_val > 30 else 'Moderate' if adx_val > 20 else 'Weak'})"
 
+        # ---- SECTOR MOMENTUM (day/week) for this pick's sector ----
+        sp = sector_perf.get(stock_sector, {}) if sector_perf else {}
+        sector_day_str  = f"{sp['ret_1d']:+.1%}" if 'ret_1d' in sp else "n/a"
+        sector_week_str = f"{sp['ret_1w']:+.1%}" if 'ret_1w' in sp else "n/a"
+
         return {
-            "Symbol":   symbol,
-            "Sector":   stock_sector,
-            "Score":    score,
-            "Setup":    setup_type,
-            "Candle":   candle_label,
-            "MACD":     macd_label,
-            "OBV":      obv_label,
-            "ADX":      adx_label,
+            "Symbol":     symbol,
+            "Sector":     stock_sector,
+            "Score":      score,
+            "Setup":      setup_type,
+            "Candle":     candle_label,
+            "MACD":       macd_label,
+            "OBV":        obv_label,
+            "ADX":        adx_label,
+            "SectorDay":  sector_day_str,
+            "SectorWeek": sector_week_str,
             "Squeeze":  "Yes" if bb_squeeze else "No",
             "Entry":    round(entry, 2),
             "Stop":     round(float(stop), 2),
@@ -961,7 +1063,7 @@ sector_map = {
     # Consumer Discretionary
     "TSLA":"XLY",  "UBER":"XLY",  "LYFT":"XLY",  "DECK":"XLY",
     "ONON":"XLY",  "LULU":"XLY",  "MELI":"XLY",  "SE":"XLY",
-    "EXPE":"XLY",  "CELH":"XLY",
+    "EXPE":"XLY",
     # Utilities / Power
     "NEE":"XLU",   "ICLN":"XLU",  "VST":"XLU",   "CEG":"XLU",
     "NRG":"XLU",
@@ -1049,7 +1151,7 @@ def run_agent():
     breadth_label = "Strong" if breadth >= 60 else "Mixed" if breadth >= 40 else "Weak"
 
     print("\nChecking sector rotation...")
-    hot_sectors = get_sector_rotation()
+    hot_sectors, sector_perf, sector_strength_cache = get_sector_rotation()
 
     # ---- Step 2: Build universe ----
     active_sector_map = get_dynamic_universe(sector_map) if EXPAND_UNIVERSE else dict(sector_map)
@@ -1087,16 +1189,29 @@ def run_agent():
 
     print(f"\nScanning {len(all_stocks)} stocks...")
 
-    for stock in all_stocks:
-        time.sleep(0.8)
+    # Batch-download 2y price history for the ENTIRE (now S&P-500-sized) universe in
+    # one pass (a handful of chunked/threaded calls) instead of one download per
+    # stock inside the loop below — the main perf change needed once EXPAND_UNIVERSE
+    # started pulling in ~450+ tickers instead of the original 139.
+    print("Batch-downloading price history for the full universe...")
+    stock_frames = batch_download(all_stocks, period="2y", interval="1d")
+    print(f"  Got price data for {len(stock_frames)}/{len(all_stocks)} symbols.")
 
+    for stock in all_stocks:
         if not passes_fundamental_filter(stock):
             skipped_fund += 1
             continue
+        # Small pacing only around the remaining individual per-symbol calls below
+        # (.info was just called above; .calendar is called by is_near_earnings).
+        # Price data itself is already batched, so this no longer needs to be
+        # 0.8s per stock like before.
+        time.sleep(0.15)
 
         etf = active_sector_map.get(stock, "OTHER")
         if etf not in {"OTHER","GLD","SLV"}:
-            if not sector_is_strong(etf):
+            if etf not in sector_strength_cache:
+                sector_strength_cache[etf] = sector_is_strong(etf)
+            if not sector_strength_cache[etf]:
                 skipped_sec += 1
                 continue
 
@@ -1104,7 +1219,7 @@ def run_agent():
             skipped_earn += 1
             continue
 
-        result = check_stock(stock, spy_df, hot_sectors, active_sector_map, risk_pct=effective_risk)
+        result = check_stock(stock, stock_frames.get(stock), spy_df, hot_sectors, sector_perf, active_sector_map, risk_pct=effective_risk)
 
         if result:
             # Portfolio concentration check
@@ -1220,6 +1335,7 @@ def run_agent():
             f"OBV     : {pick['OBV']}\n"
             f"ADX     : {pick['ADX']}\n"
             f"Squeeze : {pick['Squeeze']}\n"
+            f"Sector Mom: 1D {pick['SectorDay']} | 1W {pick['SectorWeek']}\n"
             f"{news_block}\n"
             f"{conf_block}\n"
             f"Entry   : ${pick['Entry']}\n"
@@ -1248,20 +1364,22 @@ def is_market_hours():
     return (12 * 60) <= time_val <= (21 * 60 + 30)
 
 if __name__ == "__main__":
+    # NOTE: this used to self-loop every 30 min inside a single process until market
+    # close. Combined with the workflow's 5 separate cron triggers spread across the
+    # day, the FIRST trigger's loop already covered the entire trading day by itself
+    # -- so each subsequent cron trigger started a redundant, fully-overlapping second
+    # (third, fourth...) copy of the same day-long loop. That's very likely the source
+    # of duplicate Telegram alerts, ~5x the intended Yahoo Finance API load, and the
+    # trade_log.csv git-push races seen in practice (multiple overlapping processes
+    # committing around the same time). Scheduling now lives ENTIRELY in the 5 cron
+    # entries in .github/workflows/run_agent.yml -- this script does exactly one
+    # scan-and-exit per invocation.
     print("🚀 US Professional Swing Trading Agent")
     print(f"Started at {datetime.utcnow().strftime('%H:%M UTC')}")
 
     if is_market_hours():
         run_agent()
     else:
-        print(f"Outside market hours — waiting...")
+        print("Outside market hours — skipping this run.")
 
-    while True:
-        time.sleep(30 * 60)
-        if is_market_hours():
-            run_agent()
-        else:
-            print(f"Market closed — exiting.")
-            break
-
-    print("✅ Done — market closed.")
+    print("✅ Done.")
