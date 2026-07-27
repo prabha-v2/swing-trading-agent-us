@@ -91,3 +91,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-07-27,ITA,ITA,EMA20 Pullback,26,243.75,228.52,281.82,18,4388,274,685,2.5,N/A,No,,,,,
 2026-07-27,SNOW,XLK,EMA20 Pullback,26,271.92,259.48,303.02,16,4351,199,498,2.5,Neutral,Yes,,,,,
 2026-07-27,GE,XLI,EMA20 Pullback,23,361.41,336.53,423.61,12,4337,299,746,2.49,Neutral,Yes,,,,,
+2026-07-27,HPE,XLK,EMA20 Pullback,24,48.21,43.7,59.47,66,3182,297,743,2.5,Neutral,Yes,,,,,
