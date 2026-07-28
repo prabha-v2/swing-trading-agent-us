@@ -98,3 +98,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-07-28,NEE,XLU,EMA20 Pullback,23,90.57,87.45,98.37,49,4438,153,382,2.5,Neutral,Yes,,,,,
 2026-07-28,ZS,XLK,EMA20 Pullback,22,151.12,139.24,180.84,25,3778,297,743,2.5,Neutral,Yes,,,,,
 2026-07-28,NU,XLF,Squeeze Breakout,22,14.72,13.33,18.19,216,3179,300,750,2.5,Neutral,Yes,,,,,
+2026-07-28,GE,XLI,EMA20 Pullback,22,361.68,336.53,424.55,11,3978,277,692,2.5,Neutral,No,,,,,
