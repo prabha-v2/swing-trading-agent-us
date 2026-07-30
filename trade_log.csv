@@ -104,3 +104,5 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-07-30,JPM,XLF,EMA20 Pullback,24,349.09,335.05,384.19,12,4189,168,421,2.51,Neutral,Yes,,,,,
 2026-07-30,DLR,XLRE,EMA20 Pullback,23,193.98,172.78,246.98,14,2716,297,742,2.5,Neutral,Yes,,,,,
 2026-07-30,RTX,ITA,EMA20 Pullback,23,210.88,193.11,255.28,16,3374,284,710,2.5,Neutral,No,,,,,
+2026-07-30,V,XLF,EMA20 Pullback,27,363.65,348.5,401.54,12,4364,182,455,2.5,Neutral,No,,,,,
+2026-07-30,GD,ITA,EMA20 Pullback,26,380.25,361.24,427.78,11,4183,209,523,2.5,Neutral,No,,,,,
