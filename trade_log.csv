@@ -106,3 +106,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-07-30,RTX,ITA,EMA20 Pullback,23,210.88,193.11,255.28,16,3374,284,710,2.5,Neutral,No,,,,,
 2026-07-30,V,XLF,EMA20 Pullback,27,363.65,348.5,401.54,12,4364,182,455,2.5,Neutral,No,,,,,
 2026-07-30,GD,ITA,EMA20 Pullback,26,380.25,361.24,427.78,11,4183,209,523,2.5,Neutral,No,,,,,
+2026-07-30,PANW,XLK,EMA20 Pullback,24,326.29,308.54,370.67,13,4242,231,577,2.5,Neutral,Yes,,,,,
