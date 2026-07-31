@@ -112,3 +112,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-07-31,AMZN,XLK,ATH Breakout,23,271.2,243.69,339.99,10,2712,275,688,2.5,Neutral,Yes,,,,,
 2026-07-31,GE,XLI,EMA20 Pullback,23,356.94,338.6,402.79,12,4283,220,550,2.5,Neutral,Yes,,,,,
 2026-07-31,JPM,XLF,EMA20 Pullback,23,351.96,337.3,388.61,12,4224,176,440,2.5,Neutral,Yes,,,,,
+2026-07-31,MSFT,XLK,Trend Continuation,25,463.17,414.43,585.02,6,2779,292,731,2.5,Neutral,No,,,,,
