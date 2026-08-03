@@ -118,3 +118,5 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-03,ITA,ITA,EMA20 Pullback,28,243.38,226.6,285.33,17,4137,285,713,2.5,N/A,Yes,,,,,
 2026-08-03,V,XLF,EMA20 Pullback,25,366.84,348.5,412.69,12,4402,220,550,2.5,Neutral,No,,,,,
 2026-08-03,XOM,XLE,EMA20 Pullback,25,155.66,148.48,173.61,28,4358,201,503,2.5,Neutral,Yes,,,,,
+2026-08-03,COF,XLF,EMA20 Pullback,29,216.24,199.51,258.07,17,3676,284,711,2.5,Neutral,Yes,,,,,
+2026-08-03,MSFT,XLK,Trend Continuation,25,488.6,436.2,619.6,5,2443,262,655,2.5,Neutral,No,,,,,
