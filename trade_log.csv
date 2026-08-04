@@ -126,3 +126,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-04,OKTA,XLK,EMA20 Pullback,28,145.55,129.02,186.87,18,2620,297,744,2.51,Neutral,Yes,,,,,
 2026-08-04,MSFT,XLK,Trend Continuation,28,496.44,442.96,630.15,5,2482,267,669,2.51,Neutral,Yes,,,,,
 2026-08-04,RTX,ITA,EMA20 Pullback,24,216.39,198.51,261.08,16,3462,286,715,2.5,Neutral,Yes,,,,,
+2026-08-04,DLR,XLRE,EMA20 Pullback,25,194.64,176.8,239.23,16,3114,285,713,2.5,Neutral,Yes,,,,,
