@@ -106,7 +106,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-07-30,RTX,ITA,EMA20 Pullback,23,210.88,193.11,255.28,16,3374,284,710,2.5,Neutral,No,,,,,
 2026-07-30,V,XLF,EMA20 Pullback,27,363.65,348.5,401.54,12,4364,182,455,2.5,Neutral,No,,,,,
 2026-07-30,GD,ITA,EMA20 Pullback,26,380.25,361.24,427.78,11,4183,209,523,2.5,Neutral,No,,,,,
-2026-07-30,PANW,XLK,EMA20 Pullback,24,326.29,308.54,370.67,13,4242,231,577,2.5,Neutral,Yes,,,,,
+2026-07-30,PANW,XLK,EMA20 Pullback,24,326.29,308.54,370.67,13,4242,231,577,2.5,Neutral,Yes,TARGET HIT,2026-08-05,370.67,576.94,13.6
 2026-07-31,V,XLF,EMA20 Pullback,30,364.85,348.5,405.73,12,4378,196,491,2.51,Neutral,Yes,,,,,
 2026-07-31,RTX,ITA,EMA20 Pullback,23,212.86,194.9,257.77,16,3406,287,719,2.51,Neutral,Yes,,,,,
 2026-07-31,AMZN,XLK,ATH Breakout,23,271.2,243.69,339.99,10,2712,275,688,2.5,Neutral,Yes,,,,,
@@ -130,3 +130,8 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-04,V,XLF,EMA20 Pullback,27,370.66,348.5,426.06,12,4448,266,665,2.5,Neutral,Yes,,,,,
 2026-08-04,COF,XLF,Trend Continuation,26,221.9,204.53,265.3,17,3772,295,738,2.5,Neutral,Yes,,,,,
 2026-08-04,XAR,XAR,EMA20 Pullback,25,281.89,258.5,340.35,12,3383,281,702,2.5,N/A,Yes,,,,,
+2026-08-05,S,XLK,Squeeze Breakout,31,21.14,18.64,27.4,119,2516,298,744,2.5,Neutral,No,,,,,
+2026-08-05,GE,XLI,ATH Breakout,30,382.14,351.18,459.54,9,3439,279,697,2.5,Neutral,Yes,,,,,
+2026-08-05,NVDA,SMH,Trend Continuation,27,220.01,195.98,280.06,12,2640,288,721,2.5,Neutral,Yes,,,,,
+2026-08-05,COF,XLF,Trend Continuation,24,222.17,204.21,267.06,16,3555,287,718,2.5,Neutral,No,,,,,
+2026-08-05,RTX,ITA,ATH Breakout,23,219.74,202.51,262.83,17,3736,293,732,2.5,Neutral,Yes,,,,,
