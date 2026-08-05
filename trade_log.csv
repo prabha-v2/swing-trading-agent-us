@@ -135,3 +135,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-05,NVDA,SMH,Trend Continuation,27,220.01,195.98,280.06,12,2640,288,721,2.5,Neutral,Yes,,,,,
 2026-08-05,COF,XLF,Trend Continuation,24,222.17,204.21,267.06,16,3555,287,718,2.5,Neutral,No,,,,,
 2026-08-05,RTX,ITA,ATH Breakout,23,219.74,202.51,262.83,17,3736,293,732,2.5,Neutral,Yes,,,,,
+2026-08-05,ITA,ITA,EMA20 Pullback,25,251.68,234.7,294.14,17,4279,289,722,2.5,N/A,No,,,,,
