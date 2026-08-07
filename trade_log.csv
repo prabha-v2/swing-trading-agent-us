@@ -148,3 +148,6 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-07,COPX,XLB,Trend Continuation,24,88.18,79.59,109.65,34,2998,292,730,2.5,N/A,Yes,,,,,
 2026-08-07,XBI,XBI,EMA20 Pullback,23,156.48,144.31,186.9,24,3756,292,730,2.5,N/A,Yes,,,,,
 2026-08-07,RTX,ITA,ATH Breakout,23,221.97,209.39,253.42,20,4439,252,629,2.5,Neutral,Yes,,,,,
+2026-08-07,NVDA,SMH,ATH Breakout,25,224.62,201.16,283.29,12,2695,282,704,2.5,Neutral,Yes,,,,,
+2026-08-07,MPC,XLE,EMA20 Pullback,25,298.65,290.36,319.37,15,4480,124,311,2.51,Neutral,Yes,,,,,
+2026-08-07,WPM,XLB,Trend Continuation,22,135.22,119.54,174.42,19,2569,298,745,2.5,Neutral,Yes,,,,,
