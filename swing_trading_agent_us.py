@@ -116,40 +116,70 @@ GICS_TO_ETF = {
     "Communication Services":   "XLC",
 }
 
+WIKI_SP500_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+# GitHub's raw CSV mirror of the S&P 500 constituent list — used as a fallback
+# if the Wikipedia table fetch/parse fails (structure changes, blocked UA, etc.)
+FALLBACK_SP500_CSV = "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv"
+
+def _parse_sp500_table(df, base_sector_map, extended):
+    """Shared parsing logic: df must have Symbol / GICS Sector [/ GICS Sub-Industry]."""
+    added = 0
+    for _, row in df.iterrows():
+        sym  = str(row.get("Symbol", "")).strip().replace(".", "-")
+        gics = str(row.get("GICS Sector", "")).strip()
+        sub  = str(row.get("GICS Sub-Industry", "")).strip()
+        if not sym or sym.lower() == "nan" or sym in extended:
+            continue
+        # Route semiconductors/biotech to their dedicated ETFs (matches how
+        # the curated list already treats e.g. NVDA->SMH, LLY->XBI) instead
+        # of lumping every new IT/Health Care name into XLK/XLV.
+        if "Semiconductor" in sub:
+            etf = "SMH"
+        elif "Biotechnology" in sub:
+            etf = "XBI"
+        else:
+            etf = GICS_TO_ETF.get(gics, "OTHER")
+        extended[sym] = etf
+        added += 1
+    return added
+
 def get_dynamic_universe(base_sector_map):
     """
-    Fetch S&P 500 from Wikipedia. Returns an extended sector_map that
-    combines the curated base_sector_map with the broader S&P 500.
+    Fetch S&P 500 constituents and return an extended sector_map that combines
+    the curated base_sector_map with the broader S&P 500.
+
+    Tries Wikipedia first (with a real browser User-Agent — Wikimedia can 403
+    the default urllib/pandas UA with no headers), then falls back to a GitHub-
+    hosted CSV mirror of the same list if that fails for any reason. Any failure
+    here should never crash the scan — worst case we fall back to the curated
+    list — but we print loudly so a silent 139-only universe doesn't go unnoticed.
     """
-    print("\nFetching S&P 500 universe from Wikipedia...")
+    print("\nFetching S&P 500 universe...")
     extended = dict(base_sector_map)   # start with curated list
+    before   = len(extended)
 
+    # ---- Attempt 1: Wikipedia constituents table ----
     try:
-        tables = pd.read_html(
-            "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
-            attrs={"id": "constituents"}
-        )
+        headers = {"User-Agent": "Mozilla/5.0 (compatible; swing-trading-agent-us/1.0)"}
+        resp = requests.get(WIKI_SP500_URL, headers=headers, timeout=15)
+        resp.raise_for_status()
+        tables = pd.read_html(resp.text, attrs={"id": "constituents"})
         df = tables[0]
-        # Columns: Symbol, Security, GICS Sector, GICS Sub-Industry, ...
-        for _, row in df.iterrows():
-            sym  = str(row.get("Symbol", "")).strip().replace(".", "-")
-            gics = str(row.get("GICS Sector", "")).strip()
-            sub  = str(row.get("GICS Sub-Industry", "")).strip()
-            if sym and sym not in extended:
-                # Route semiconductors/biotech to their dedicated ETFs (matches how
-                # the curated list already treats e.g. NVDA->SMH, LLY->XBI) instead
-                # of lumping every new IT/Health Care name into XLK/XLV.
-                if "Semiconductor" in sub:
-                    etf = "SMH"
-                elif "Biotechnology" in sub:
-                    etf = "XBI"
-                else:
-                    etf = GICS_TO_ETF.get(gics, "OTHER")
-                extended[sym] = etf
-
-        print(f"  Curated: {len(base_sector_map)} | S&P 500 added: {len(extended) - len(base_sector_map)} | Total: {len(extended)}")
+        added = _parse_sp500_table(df, base_sector_map, extended)
+        print(f"  Wikipedia OK — Curated: {before} | Added: {added} | Total: {len(extended)}")
+        return extended
     except Exception as e:
-        print(f"  ⚠️ Wikipedia fetch failed ({e}) — using curated list only")
+        print(f"  ⚠️ Wikipedia fetch/parse failed ({type(e).__name__}: {e}) — trying fallback source...")
+
+    # ---- Attempt 2: GitHub CSV mirror ----
+    try:
+        df = pd.read_csv(FALLBACK_SP500_CSV)
+        df = df.rename(columns={"Sector": "GICS Sector", "Sub-Industry": "GICS Sub-Industry"})
+        added = _parse_sp500_table(df, base_sector_map, extended)
+        print(f"  Fallback CSV OK — Curated: {before} | Added: {added} | Total: {len(extended)}")
+        return extended
+    except Exception as e:
+        print(f"  ⚠️ Fallback CSV also failed ({type(e).__name__}: {e}) — using curated list only ({before} stocks)")
 
     return extended
 
