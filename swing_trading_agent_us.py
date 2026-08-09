@@ -484,7 +484,11 @@ def get_news_sentiment(symbol):
         score     = 0
         headlines = []
         for article in news[:6]:
-            title = article.get("title", "")
+            # yfinance changed its news schema to nest fields under
+            # article["content"]["title"] instead of a flat article["title"].
+            # Handle both shapes so this doesn't silently go blank again if
+            # the schema shifts back/forward.
+            title = article.get("title") or article.get("content", {}).get("title", "")
             if not title:
                 continue
             low = title.lower()
