@@ -158,3 +158,5 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-10,XBI,XBI,EMA20 Pullback,29,157.49,145.43,187.64,24,3780,289,724,2.51,N/A,Yes,,,,,
 2026-08-10,LMT,ITA,Trend Continuation,25,598.2,556.55,702.33,7,4187,292,729,2.5,Slightly Positive,Yes,,,,,
 2026-08-10,A,XLV,Trend Continuation,25,147.0,135.78,175.05,26,3822,292,729,2.5,Neutral,Yes,,,,,
+2026-08-10,LLY,XBI,EMA20 Pullback,29,1213.58,1109.15,1474.65,2,2427,209,522,2.5,Positive,Yes,,,,,
+2026-08-10,RTX,ITA,ATH Breakout,26,225.89,209.39,267.14,18,4066,297,742,2.5,Positive,Yes,,,,,
