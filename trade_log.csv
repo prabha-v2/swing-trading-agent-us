@@ -96,7 +96,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-07-28,ITA,ITA,EMA20 Pullback,23,243.79,229.32,279.97,18,4388,261,651,2.49,N/A,No,,,,,
 2026-07-28,S,XLK,EMA20 Pullback,23,18.1,17.32,20.07,248,4490,195,487,2.5,Neutral,Yes,TARGET HIT,2026-08-03,20.07,488.56,10.88
 2026-07-28,NEE,XLU,EMA20 Pullback,23,90.57,87.45,98.37,49,4438,153,382,2.5,Neutral,Yes,STOPPED,2026-07-30,87.45,-152.88,-3.44
-2026-07-28,ZS,XLK,EMA20 Pullback,22,151.12,139.24,180.84,25,3778,297,743,2.5,Neutral,Yes,,,,,
+2026-07-28,ZS,XLK,EMA20 Pullback,22,151.12,139.24,180.84,25,3778,297,743,2.5,Neutral,Yes,TARGET HIT,2026-08-13,180.84,743.0,19.67
 2026-07-28,NU,XLF,Squeeze Breakout,22,14.72,13.33,18.19,216,3179,300,750,2.5,Neutral,Yes,,,,,
 2026-07-28,GE,XLI,EMA20 Pullback,22,361.68,336.53,424.55,11,3978,277,692,2.5,Neutral,No,,,,,
 2026-07-28,JPM,XLF,EMA20 Pullback,23,357.61,335.31,413.37,12,4291,268,669,2.5,Neutral,Yes,,,,,
@@ -188,3 +188,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-13,TSM,SMH,EMA20 Pullback,25,434.28,398.2,524.47,8,3474,289,722,2.5,Slightly Positive,Yes,,,,,
 2026-08-13,AJG,XLF,EMA20 Pullback,25,256.09,240.82,294.26,17,4354,260,649,2.5,Slightly Negative,Yes,,,,,
 2026-08-13,ADP,XLI,EMA20 Pullback,25,271.41,258.99,302.46,16,4343,199,497,2.5,Positive,Yes,,,,,
+2026-08-13,FDX,XLI,EMA20 Pullback,29,332.99,312.87,383.28,13,4329,261,654,2.51,Negative,Yes,,,,,
+2026-08-13,SMH,SMH,Squeeze Breakout,27,595.92,526.59,769.23,4,2384,277,693,2.5,N/A,Yes,,,,,
+2026-08-13,BAC,XLF,EMA20 Pullback,27,64.01,61.54,70.19,70,4481,173,432,2.5,Neutral,No,,,,,
+2026-08-13,CVX,XLE,EMA20 Pullback,26,197.27,185.87,225.77,22,4340,251,627,2.5,Slightly Positive,Yes,,,,,
