@@ -206,3 +206,5 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-14,GILD,XBI,EMA20 Pullback,24,137.57,129.02,158.96,32,4402,274,684,2.5,Positive,Yes,,,,,
 2026-08-14,HWM,XLI,EMA20 Pullback,27,288.4,276.26,318.75,15,4326,182,455,2.5,Positive,Yes,,,,,
 2026-08-14,BDX,XLV,ATH Breakout,26,183.45,168.91,219.8,20,3669,291,727,2.5,Positive,Yes,,,,,
+2026-08-14,NWSA,XLC,EMA20 Pullback,28,29.16,27.42,33.51,154,4491,268,670,2.5,Positive,Yes,,,,,
+2026-08-14,PYPL,XLF,Squeeze Breakout,26,61.66,57.18,72.86,66,4070,296,739,2.5,Positive,Yes,,,,,
