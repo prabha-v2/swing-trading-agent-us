@@ -201,3 +201,6 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-14,COF,XLF,EMA20 Pullback,26,226.16,211.95,261.68,19,4297,270,675,2.5,Positive,Yes,,,,,
 2026-08-14,ALGN,XLV,EMA20 Pullback,25,179.24,165.0,214.84,21,3764,299,748,2.5,Positive,Yes,,,,,
 2026-08-14,MSFT,XLK,Trend Continuation,25,497.2,475.0,552.7,9,4475,200,500,2.5,Neutral,Yes,,,,,
+2026-08-14,GD,ITA,EMA20 Pullback,26,395.64,378.87,437.55,11,4352,184,461,2.51,Positive,Yes,,,,,
+2026-08-14,BIIB,XBI,EMA20 Pullback,25,209.75,199.58,235.17,21,4405,214,534,2.5,Positive,No,,,,,
+2026-08-14,GILD,XBI,EMA20 Pullback,24,137.57,129.02,158.96,32,4402,274,684,2.5,Positive,Yes,,,,,
