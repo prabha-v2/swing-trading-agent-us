@@ -204,3 +204,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-14,GD,ITA,EMA20 Pullback,26,395.64,378.87,437.55,11,4352,184,461,2.51,Positive,Yes,,,,,
 2026-08-14,BIIB,XBI,EMA20 Pullback,25,209.75,199.58,235.17,21,4405,214,534,2.5,Positive,No,,,,,
 2026-08-14,GILD,XBI,EMA20 Pullback,24,137.57,129.02,158.96,32,4402,274,684,2.5,Positive,Yes,,,,,
+2026-08-14,HWM,XLI,EMA20 Pullback,27,288.4,276.26,318.75,15,4326,182,455,2.5,Positive,Yes,,,,,
