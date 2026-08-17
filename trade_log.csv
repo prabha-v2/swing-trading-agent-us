@@ -220,3 +220,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-17,XBI,XBI,EMA20 Pullback,27,158.99,147.94,186.62,27,4293,298,746,2.5,N/A,Yes,,,,,
 2026-08-17,GILD,XBI,EMA20 Pullback,27,138.85,129.02,163.43,30,4166,295,737,2.5,Positive,No,,,,,
 2026-08-17,IBKR,XLF,EMA20 Pullback,27,93.55,85.37,114.0,36,3368,294,736,2.5,Slightly Positive,Yes,,,,,
+2026-08-17,XOM,XLE,Squeeze Breakout,29,161.95,150.25,191.18,25,4049,292,731,2.5,Positive,Yes,,,,,
