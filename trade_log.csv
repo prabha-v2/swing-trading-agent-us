@@ -208,3 +208,8 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-14,BDX,XLV,ATH Breakout,26,183.45,168.91,219.8,20,3669,291,727,2.5,Positive,Yes,,,,,
 2026-08-14,NWSA,XLC,EMA20 Pullback,28,29.16,27.42,33.51,154,4491,268,670,2.5,Positive,Yes,,,,,
 2026-08-14,PYPL,XLF,Squeeze Breakout,26,61.66,57.18,72.86,66,4070,296,739,2.5,Positive,Yes,,,,,
+2026-08-17,EXPE,XLY,ATH Breakout,29,332.69,297.8,419.92,8,2662,279,698,2.5,Positive,Yes,,,,,
+2026-08-17,CVX,XLE,Squeeze Breakout,28,200.0,185.87,235.33,21,4200,297,742,2.5,Slightly Positive,Yes,,,,,
+2026-08-17,ALGN,XLV,EMA20 Pullback,27,181.31,165.0,222.08,18,3264,294,734,2.5,Positive,Yes,,,,,
+2026-08-17,PYPL,XLF,Squeeze Breakout,26,61.66,57.18,72.86,66,4070,296,739,2.5,Slightly Negative,Yes,,,,,
+2026-08-17,BDX,XLV,ATH Breakout,26,183.4,168.85,219.77,20,3668,291,727,2.5,Positive,Yes,,,,,
