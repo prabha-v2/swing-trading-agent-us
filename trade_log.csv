@@ -233,3 +233,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-18,LMT,ITA,Trend Continuation,28,612.06,577.0,699.71,7,4284,245,614,2.51,Positive,Yes,,,,,
 2026-08-18,LLY,XBI,EMA20 Pullback,28,1216.11,1136.8,1414.38,3,3648,238,595,2.5,Positive,Yes,,,,,
 2026-08-18,ABNB,XLY,ATH Breakout,26,184.99,164.67,235.8,14,2590,285,711,2.49,Positive,Yes,,,,,
+2026-08-18,ABT,XLV,Trend Continuation,25,113.23,105.5,132.56,38,4303,294,735,2.5,Positive,Yes,,,,,
