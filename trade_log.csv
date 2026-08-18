@@ -229,3 +229,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-18,KO,XLP,EMA20 Pullback,29,88.75,85.16,97.74,50,4438,180,449,2.49,Positive,No,,,,,
 2026-08-18,TECH,XLV,Squeeze Breakout,27,72.43,71.89,73.8,62,4491,34,84,2.47,Neutral,Yes,,,,,
 2026-08-18,PCG,XLU,EMA20 Pullback,26,17.94,16.88,20.61,250,4486,266,666,2.5,Slightly Negative,Yes,,,,,
+2026-08-18,XOM,XLE,Squeeze Breakout,29,164.54,153.36,192.5,26,4278,291,727,2.5,Positive,No,,,,,
+2026-08-18,LMT,ITA,Trend Continuation,28,612.06,577.0,699.71,7,4284,245,614,2.51,Positive,Yes,,,,,
+2026-08-18,LLY,XBI,EMA20 Pullback,28,1216.11,1136.8,1414.38,3,3648,238,595,2.5,Positive,Yes,,,,,
+2026-08-18,ABNB,XLY,ATH Breakout,26,184.99,164.67,235.8,14,2590,285,711,2.49,Positive,Yes,,,,,
