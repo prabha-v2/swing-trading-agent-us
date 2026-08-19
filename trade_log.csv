@@ -245,3 +245,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-19,EXPE,XLY,ATH Breakout,27,331.33,304.2,399.15,11,3645,298,746,2.5,Positive,Yes,,,,,
 2026-08-19,PYPL,XLF,Squeeze Setup,27,61.65,57.89,71.05,72,4439,271,677,2.5,Negative,Yes,,,,,
 2026-08-19,WPM,XLB,Volume Breakout,26,145.19,128.03,188.1,17,2468,292,729,2.5,Positive,Yes,,,,,
+2026-08-19,VKTX,XBI,EMA20 Pullback,27,35.53,32.33,43.51,93,3304,297,742,2.5,Slightly Positive,Yes,,,,,
