@@ -236,3 +236,8 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-18,ABT,XLV,Trend Continuation,25,113.23,105.5,132.56,38,4303,294,735,2.5,Positive,Yes,,,,,
 2026-08-18,GE,XLI,EMA20 Pullback,28,375.09,359.55,413.94,11,4126,171,427,2.5,Positive,Yes,,,,,
 2026-08-18,XBI,XBI,EMA20 Pullback,27,160.11,151.49,181.66,28,4483,241,603,2.5,N/A,Yes,,,,,
+2026-08-19,XOM,XLE,Squeeze Breakout,32,165.56,154.31,193.68,26,4305,292,731,2.5,Slightly Positive,Yes,,,,,
+2026-08-19,CVX,XLE,ATH Breakout,30,205.74,192.1,239.84,21,4321,286,716,2.5,Neutral,Yes,,,,,
+2026-08-19,ROIV,XBI,ATH Breakout,29,37.37,33.11,48.01,70,2616,298,745,2.5,Negative,Yes,,,,,
+2026-08-19,LLY,XBI,EMA20 Pullback,29,1225.73,1136.8,1448.05,3,3677,267,667,2.5,Slightly Negative,Yes,,,,,
+2026-08-19,GE,XLI,EMA20 Pullback,28,375.09,359.55,413.94,11,4126,171,427,2.5,Slightly Positive,Yes,,,,,
