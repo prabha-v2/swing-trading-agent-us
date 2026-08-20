@@ -248,3 +248,8 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-19,VKTX,XBI,EMA20 Pullback,27,35.53,32.33,43.51,93,3304,297,742,2.5,Slightly Positive,Yes,,,,,
 2026-08-19,GOLD,XLB,Trend Continuation,27,45.53,41.5,55.6,74,3369,298,746,2.5,Neutral,Yes,,,,,
 2026-08-19,BDX,XLV,ATH Breakout,27,187.6,173.87,221.94,21,3940,288,721,2.5,Positive,Yes,,,,,
+2026-08-20,LLY,XBI,ATH Breakout,32,1280.34,1159.54,1582.34,2,2561,242,604,2.5,Positive,Yes,,,,,
+2026-08-20,KO,XLP,EMA20 Pullback,30,90.35,86.17,100.8,49,4427,205,512,2.5,Neutral,Yes,,,,,
+2026-08-20,BDX,XLV,ATH Breakout,29,187.6,173.79,222.12,21,3940,290,725,2.5,Positive,Yes,,,,,
+2026-08-20,CVX,XLE,ATH Breakout,27,205.76,192.25,239.54,21,4321,284,709,2.5,Slightly Positive,Yes,,,,,
+2026-08-20,GOLD,XLB,Trend Continuation,26,45.53,41.5,55.6,74,3369,298,746,2.5,Neutral,Yes,,,,,
