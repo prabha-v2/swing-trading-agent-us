@@ -131,7 +131,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-04,COF,XLF,Trend Continuation,26,221.9,204.53,265.3,17,3772,295,738,2.5,Neutral,Yes,,,,,
 2026-08-04,XAR,XAR,EMA20 Pullback,25,281.89,258.5,340.35,12,3383,281,702,2.5,N/A,Yes,,,,,
 2026-08-05,S,XLK,Squeeze Breakout,31,21.14,18.64,27.4,119,2516,298,744,2.5,Neutral,No,,,,,
-2026-08-05,GE,XLI,ATH Breakout,30,382.14,351.18,459.54,9,3439,279,697,2.5,Neutral,Yes,,,,,
+2026-08-05,GE,XLI,ATH Breakout,30,382.14,351.18,459.54,9,3439,279,697,2.5,Neutral,Yes,STOPPED,2026-08-20,351.18,-278.64,-8.1
 2026-08-05,NVDA,SMH,Trend Continuation,27,220.01,195.98,280.06,12,2640,288,721,2.5,Neutral,Yes,,,,,
 2026-08-05,COF,XLF,Trend Continuation,24,222.17,204.21,267.06,16,3555,287,718,2.5,Neutral,No,,,,,
 2026-08-05,RTX,ITA,ATH Breakout,23,219.74,202.51,262.83,17,3736,293,732,2.5,Neutral,Yes,,,,,
@@ -141,7 +141,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-06,OKTA,XLK,EMA20 Pullback,27,145.16,129.02,185.53,18,2613,291,727,2.5,Neutral,No,,,,,
 2026-08-06,FTNT,XLK,EMA20 Pullback,26,161.8,143.77,206.89,16,2589,289,721,2.49,Neutral,No,,,,,
 2026-08-06,XAR,XAR,ATH Breakout,23,288.5,265.51,345.98,13,3750,299,747,2.5,N/A,Yes,,,,,
-2026-08-06,GE,XLI,ATH Breakout,23,382.57,352.98,456.53,10,3826,296,740,2.5,Neutral,Yes,,,,,
+2026-08-06,GE,XLI,ATH Breakout,23,382.57,352.98,456.53,10,3826,296,740,2.5,Neutral,Yes,STOPPED,2026-08-20,352.98,-295.9,-7.73
 2026-08-06,COF,XLF,Trend Continuation,23,221.85,204.7,264.72,17,3771,292,729,2.5,Neutral,Yes,,,,,
 2026-08-07,PANW,XLK,ATH Breakout,27,366.41,323.54,473.6,6,2198,257,643,2.5,Neutral,Yes,,,,,
 2026-08-07,GE,XLI,EMA20 Pullback,25,375.31,347.66,444.43,10,3753,276,691,2.5,Neutral,No,,,,,
@@ -154,7 +154,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-07,LMT,ITA,EMA20 Pullback,24,584.05,556.55,652.82,7,4088,193,481,2.49,Neutral,Yes,,,,,
 2026-08-07,XAR,XAR,EMA20 Pullback,23,286.8,263.0,346.29,12,3442,286,714,2.5,N/A,Yes,,,,,
 2026-08-10,MPC,XLE,EMA20 Pullback,30,309.57,290.36,357.6,14,4334,269,672,2.5,Neutral,Yes,TARGET HIT,2026-08-14,357.6,672.42,15.52
-2026-08-10,CRWD,XLK,ATH Breakout,29,222.11,195.65,288.26,11,2443,291,728,2.5,Positive,Yes,,,,,
+2026-08-10,CRWD,XLK,ATH Breakout,29,222.11,195.65,288.26,11,2443,291,728,2.5,Positive,Yes,STOPPED,2026-08-20,195.65,-291.06,-11.91
 2026-08-10,XBI,XBI,EMA20 Pullback,29,157.49,145.43,187.64,24,3780,289,724,2.51,N/A,Yes,,,,,
 2026-08-10,LMT,ITA,Trend Continuation,25,598.2,556.55,702.33,7,4187,292,729,2.5,Slightly Positive,Yes,,,,,
 2026-08-10,A,XLV,Trend Continuation,25,147.0,135.78,175.05,26,3822,292,729,2.5,Neutral,Yes,,,,,
@@ -198,7 +198,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-13,BBY,XLY,EMA20 Pullback,28,85.76,79.0,102.66,44,3773,297,744,2.51,Positive,No,,,,,
 2026-08-14,CVX,XLE,Squeeze Breakout,30,200.21,186.02,235.68,21,4204,298,745,2.5,Neutral,Yes,,,,,
 2026-08-14,EXPE,XLY,ATH Breakout,26,329.8,297.8,409.8,9,2968,288,720,2.5,Neutral,Yes,,,,,
-2026-08-14,COF,XLF,EMA20 Pullback,26,226.16,211.95,261.68,19,4297,270,675,2.5,Positive,Yes,,,,,
+2026-08-14,COF,XLF,EMA20 Pullback,26,226.16,211.95,261.68,19,4297,270,675,2.5,Positive,Yes,STOPPED,2026-08-20,211.95,-269.99,-6.28
 2026-08-14,ALGN,XLV,EMA20 Pullback,25,179.24,165.0,214.84,21,3764,299,748,2.5,Positive,Yes,STOPPED,2026-08-19,165.0,-299.04,-7.94
 2026-08-14,MSFT,XLK,Trend Continuation,25,497.2,475.0,552.7,9,4475,200,500,2.5,Neutral,Yes,,,,,
 2026-08-14,GD,ITA,EMA20 Pullback,26,395.64,378.87,437.55,11,4352,184,461,2.51,Positive,Yes,,,,,
@@ -253,3 +253,6 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-20,BDX,XLV,ATH Breakout,29,187.6,173.79,222.12,21,3940,290,725,2.5,Positive,Yes,,,,,
 2026-08-20,CVX,XLE,ATH Breakout,27,205.76,192.25,239.54,21,4321,284,709,2.5,Slightly Positive,Yes,,,,,
 2026-08-20,GOLD,XLB,Trend Continuation,26,45.53,41.5,55.6,74,3369,298,746,2.5,Neutral,Yes,,,,,
+2026-08-20,PYPL,XLF,Squeeze Setup,27,61.99,57.89,72.24,72,4463,295,738,2.5,Slightly Positive,Yes,,,,,
+2026-08-20,CSX,XLI,EMA20 Pullback,27,51.41,49.71,55.66,87,4473,148,370,2.5,Positive,Yes,,,,,
+2026-08-20,ADM,XLP,EMA20 Pullback,26,83.16,76.15,100.7,42,3493,295,736,2.49,Positive,Yes,,,,,
