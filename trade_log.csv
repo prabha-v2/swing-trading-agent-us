@@ -260,3 +260,8 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-20,COP,XLE,ATH Breakout,28,134.42,123.66,161.31,27,3629,290,726,2.5,Positive,No,,,,,
 2026-08-20,DASH,XLY,Trend Continuation,28,223.02,206.25,264.96,17,3791,285,713,2.5,Negative,Yes,,,,,
 2026-08-20,KDP,XLP,EMA20 Pullback,26,31.66,28.66,39.16,100,3166,300,750,2.5,Slightly Positive,Yes,,,,,
+2026-08-21,COP,XLE,ATH Breakout,29,134.89,124.13,161.78,27,3642,290,726,2.5,Positive,Yes,,,,,
+2026-08-21,PYPL,XLF,Squeeze Setup,27,62.3,57.89,73.32,68,4236,300,750,2.5,Neutral,Yes,,,,,
+2026-08-21,KDP,XLP,EMA20 Pullback,26,31.66,28.66,39.16,100,3166,300,750,2.5,Slightly Positive,Yes,,,,,
+2026-08-21,CORT,XLK,ATH Breakout,26,121.05,109.65,149.54,26,3147,296,741,2.5,Neutral,Yes,,,,,
+2026-08-21,LLY,XBI,EMA20 Pullback,26,1244.4,1159.54,1456.55,3,3733,255,636,2.49,Positive,No,,,,,
