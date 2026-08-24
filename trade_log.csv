@@ -274,3 +274,8 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-21,WELL,XLRE,EMA20 Pullback,31,239.83,225.33,276.09,18,4317,261,653,2.5,Positive,Yes,,,,,
 2026-08-21,CSX,XLI,EMA20 Pullback,29,51.59,49.71,56.29,87,4488,164,409,2.49,Positive,Yes,,,,,
 2026-08-21,KO,XLP,EMA20 Pullback,27,91.1,87.04,101.24,49,4464,199,497,2.5,Slightly Positive,Yes,,,,,
+2026-08-24,LLY,XBI,EMA20 Pullback,29,1255.4,1163.5,1485.15,3,3766,276,689,2.5,Neutral,No,,,,,
+2026-08-24,CSX,XLI,EMA20 Pullback,29,51.59,49.71,56.29,87,4488,164,409,2.49,Positive,Yes,,,,,
+2026-08-24,ADP,XLI,EMA20 Pullback,28,280.81,265.82,318.28,16,4493,240,600,2.5,Slightly Positive,Yes,,,,,
+2026-08-24,V,XLF,EMA20 Pullback,28,371.04,358.05,403.52,12,4452,156,390,2.5,Neutral,Yes,,,,,
+2026-08-24,KO,XLP,EMA20 Pullback,27,91.1,87.03,101.28,49,4464,200,499,2.5,Positive,Yes,,,,,
