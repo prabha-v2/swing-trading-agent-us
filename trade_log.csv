@@ -285,3 +285,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-24,CTAS,XLI,EMA20 Pullback,27,206.7,196.5,232.2,21,4341,214,535,2.5,Slightly Positive,No,,,,,
 2026-08-24,ESS,XLRE,EMA20 Pullback,29,293.02,279.91,325.81,15,4395,197,492,2.5,Positive,Yes,,,,,
 2026-08-24,EXPE,XLY,ATH Breakout,27,336.67,310.91,401.07,11,3703,283,708,2.5,Positive,Yes,,,,,
+2026-08-24,ROP,XLK,Squeeze Breakout,28,415.51,387.82,484.74,10,4155,277,692,2.5,Positive,Yes,,,,,
