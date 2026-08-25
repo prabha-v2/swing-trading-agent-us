@@ -201,7 +201,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-14,COF,XLF,EMA20 Pullback,26,226.16,211.95,261.68,19,4297,270,675,2.5,Positive,Yes,STOPPED,2026-08-20,211.95,-269.99,-6.28
 2026-08-14,ALGN,XLV,EMA20 Pullback,25,179.24,165.0,214.84,21,3764,299,748,2.5,Positive,Yes,STOPPED,2026-08-19,165.0,-299.04,-7.94
 2026-08-14,MSFT,XLK,Trend Continuation,25,497.2,475.0,552.7,9,4475,200,500,2.5,Neutral,Yes,,,,,
-2026-08-14,GD,ITA,EMA20 Pullback,26,395.64,378.87,437.55,11,4352,184,461,2.51,Positive,Yes,,,,,
+2026-08-14,GD,ITA,EMA20 Pullback,26,395.64,378.87,437.55,11,4352,184,461,2.51,Positive,Yes,STOPPED,2026-08-25,378.87,-184.47,-4.24
 2026-08-14,BIIB,XBI,EMA20 Pullback,25,209.75,199.58,235.17,21,4405,214,534,2.5,Positive,No,,,,,
 2026-08-14,GILD,XBI,EMA20 Pullback,24,137.57,129.02,158.96,32,4402,274,684,2.5,Positive,Yes,,,,,
 2026-08-14,HWM,XLI,EMA20 Pullback,27,288.4,276.26,318.75,15,4326,182,455,2.5,Positive,Yes,STOPPED,2026-08-20,276.26,-182.1,-4.21
@@ -255,7 +255,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-20,GOLD,XLB,Trend Continuation,26,45.53,41.5,55.6,74,3369,298,746,2.5,Neutral,Yes,,,,,
 2026-08-20,PYPL,XLF,Squeeze Setup,27,61.99,57.89,72.24,72,4463,295,738,2.5,Slightly Positive,Yes,,,,,
 2026-08-20,CSX,XLI,EMA20 Pullback,27,51.41,49.71,55.66,87,4473,148,370,2.5,Positive,Yes,,,,,
-2026-08-20,ADM,XLP,EMA20 Pullback,26,83.16,76.15,100.7,42,3493,295,736,2.49,Positive,Yes,,,,,
+2026-08-20,ADM,XLP,EMA20 Pullback,26,83.16,76.15,100.7,42,3493,295,736,2.49,Positive,Yes,STOPPED,2026-08-25,76.15,-294.42,-8.43
 2026-08-20,CORT,XLK,ATH Breakout,27,121.53,109.43,151.77,24,2917,290,726,2.5,Positive,Yes,,,,,
 2026-08-20,COP,XLE,ATH Breakout,28,134.42,123.66,161.31,27,3629,290,726,2.5,Positive,No,,,,,
 2026-08-20,DASH,XLY,Trend Continuation,28,223.02,206.25,264.96,17,3791,285,713,2.5,Negative,Yes,,,,,
@@ -291,3 +291,6 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-25,ADP,XLI,Squeeze Breakout,28,283.01,265.82,325.99,15,4245,258,645,2.5,Slightly Positive,No,,,,,
 2026-08-25,LLY,XBI,EMA20 Pullback,27,1246.93,1163.5,1455.51,3,3741,250,626,2.5,Slightly Positive,Yes,,,,,
 2026-08-25,WPM,XLB,ATH Breakout,26,160.19,142.09,205.44,16,2563,290,724,2.5,Positive,No,,,,,
+2026-08-25,CSX,XLI,EMA20 Pullback,30,51.83,49.71,57.15,86,4458,183,457,2.5,Slightly Positive,Yes,,,,,
+2026-08-25,DASH,XLY,Trend Continuation,28,231.01,210.11,283.26,14,3234,293,731,2.49,Slightly Negative,No,,,,,
+2026-08-25,ECL,XLB,EMA20 Pullback,28,287.62,273.33,323.35,15,4314,214,536,2.5,Positive,Yes,,,,,
