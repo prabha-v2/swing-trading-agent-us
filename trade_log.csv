@@ -312,3 +312,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-26,XBI,XBI,ATH Breakout,27,168.79,155.86,201.1,23,3882,297,743,2.5,N/A,Yes,,,,,
 2026-08-26,WELL,XLRE,EMA20 Pullback,27,241.99,231.21,268.96,18,4356,194,485,2.5,Positive,Yes,,,,,
 2026-08-26,BAX,XLV,EMA20 Pullback,27,26.68,25.75,29.02,168,4483,157,393,2.5,Positive,Yes,,,,,
+2026-08-26,PSX,XLE,ATH Breakout,27,242.23,222.24,292.2,15,3633,300,750,2.5,Positive,Yes,,,,,
