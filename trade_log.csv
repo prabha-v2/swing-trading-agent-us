@@ -309,3 +309,6 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-26,ECL,XLB,Squeeze Breakout,28,291.57,275.65,331.38,15,4374,239,597,2.5,Positive,No,,,,,
 2026-08-26,MPC,XLE,ATH Breakout,27,363.45,343.06,414.42,12,4361,245,612,2.5,Positive,Yes,,,,,
 2026-08-26,APD,XLB,EMA20 Pullback,27,308.57,297.85,335.37,14,4320,150,375,2.5,Neutral,Yes,,,,,
+2026-08-26,XBI,XBI,ATH Breakout,27,168.79,155.86,201.1,23,3882,297,743,2.5,N/A,Yes,,,,,
+2026-08-26,WELL,XLRE,EMA20 Pullback,27,241.99,231.21,268.96,18,4356,194,485,2.5,Positive,Yes,,,,,
+2026-08-26,BAX,XLV,EMA20 Pullback,27,26.68,25.75,29.02,168,4483,157,393,2.5,Positive,Yes,,,,,
