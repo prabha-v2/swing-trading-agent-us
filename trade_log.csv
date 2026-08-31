@@ -318,3 +318,6 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-31,MSFT,XLK,Squeeze Setup,29,510.98,482.96,581.0,8,4088,224,560,2.5,Slightly Positive,Yes,,,,,
 2026-08-31,PLTR,XLK,Trend Continuation,26,187.52,168.9,234.07,16,3000,298,745,2.5,Positive,Yes,,,,,
 2026-08-31,APO,XLF,EMA20 Pullback,25,137.65,129.95,156.88,32,4405,246,616,2.5,Neutral,Yes,,,,,
+2026-08-31,FTNT,XLK,ATH Breakout,25,170.93,152.62,216.71,16,2735,293,733,2.5,Positive,Yes,,,,,
+2026-08-31,CF,XLB,Trend Continuation,25,130.03,116.74,163.26,22,2861,292,731,2.5,Slightly Positive,Yes,,,,,
+2026-08-31,ARES,XLF,EMA20 Pullback,25,143.17,137.12,158.3,31,4438,188,469,2.49,Positive,Yes,,,,,
