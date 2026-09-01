@@ -329,3 +329,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-01,AAPL,XLK,Squeeze Breakout,31,324.85,307.01,369.45,13,4223,232,580,2.5,Slightly Negative,No,,,,,
 2026-09-01,MPC,XLE,ATH Breakout,28,379.06,347.67,457.53,9,3412,283,706,2.49,Positive,No,,,,,
 2026-09-01,CF,XLB,ATH Breakout,26,134.91,119.67,173.02,19,2563,290,724,2.5,Neutral,Yes,,,,,
+2026-09-01,XBI,XBI,EMA20 Pullback,29,163.4,157.88,177.2,27,4412,149,373,2.5,N/A,Yes,,,,,
