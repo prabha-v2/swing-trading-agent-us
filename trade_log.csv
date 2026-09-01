@@ -242,7 +242,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-19,LLY,XBI,EMA20 Pullback,29,1225.73,1136.8,1448.05,3,3677,267,667,2.5,Slightly Negative,Yes,,,,,
 2026-08-19,GE,XLI,EMA20 Pullback,28,375.09,359.55,413.94,11,4126,171,427,2.5,Slightly Positive,Yes,STOPPED,2026-08-19,359.55,-170.94,-4.14
 2026-08-19,KO,XLP,EMA20 Pullback,28,89.8,85.73,99.99,50,4490,204,510,2.5,Slightly Positive,Yes,,,,,
-2026-08-19,EXPE,XLY,ATH Breakout,27,331.33,304.2,399.15,11,3645,298,746,2.5,Positive,Yes,,,,,
+2026-08-19,EXPE,XLY,ATH Breakout,27,331.33,304.2,399.15,11,3645,298,746,2.5,Positive,Yes,STOPPED,2026-09-01,304.2,-298.43,-8.19
 2026-08-19,PYPL,XLF,Squeeze Setup,27,61.65,57.89,71.05,72,4439,271,677,2.5,Negative,Yes,STOPPED,2026-08-31,57.89,-270.72,-6.1
 2026-08-19,WPM,XLB,Volume Breakout,26,145.19,128.03,188.1,17,2468,292,729,2.5,Positive,Yes,,,,,
 2026-08-19,VKTX,XBI,EMA20 Pullback,27,35.53,32.33,43.51,93,3304,297,742,2.5,Slightly Positive,Yes,STOPPED,2026-08-31,32.33,-297.6,-9.01
@@ -283,11 +283,11 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-24,TECH,XLV,EMA20 Pullback,27,72.33,72.0,73.17,62,4485,21,52,2.48,Positive,Yes,,,,,
 2026-08-24,T,XLC,Squeeze Breakout,29,25.69,24.15,29.52,175,4495,268,670,2.5,Slightly Negative,Yes,,,,,
 2026-08-24,CTAS,XLI,EMA20 Pullback,27,206.7,196.5,232.2,21,4341,214,535,2.5,Slightly Positive,No,,,,,
-2026-08-24,ESS,XLRE,EMA20 Pullback,29,293.02,279.91,325.81,15,4395,197,492,2.5,Positive,Yes,,,,,
+2026-08-24,ESS,XLRE,EMA20 Pullback,29,293.02,279.91,325.81,15,4395,197,492,2.5,Positive,Yes,STOPPED,2026-09-01,279.91,-196.65,-4.47
 2026-08-24,EXPE,XLY,ATH Breakout,27,336.67,310.91,401.07,11,3703,283,708,2.5,Positive,Yes,STOPPED,2026-09-01,310.91,-283.36,-7.65
 2026-08-24,ROP,XLK,Squeeze Breakout,28,415.51,387.82,484.74,10,4155,277,692,2.5,Positive,Yes,,,,,
 2026-08-25,V,XLF,Squeeze Breakout,34,382.41,362.88,431.23,11,4207,215,537,2.5,Slightly Positive,Yes,,,,,
-2026-08-25,ESS,XLRE,EMA20 Pullback,30,293.61,279.91,327.86,15,4404,205,514,2.51,Positive,Yes,,,,,
+2026-08-25,ESS,XLRE,EMA20 Pullback,30,293.61,279.91,327.86,15,4404,205,514,2.51,Positive,Yes,STOPPED,2026-09-01,279.91,-205.5,-4.67
 2026-08-25,ADP,XLI,Squeeze Breakout,28,283.01,265.82,325.99,15,4245,258,645,2.5,Slightly Positive,No,,,,,
 2026-08-25,LLY,XBI,EMA20 Pullback,27,1246.93,1163.5,1455.51,3,3741,250,626,2.5,Slightly Positive,Yes,STOPPED,2026-08-31,1163.5,-250.29,-6.69
 2026-08-25,WPM,XLB,ATH Breakout,26,160.19,142.09,205.44,16,2563,290,724,2.5,Positive,No,,,,,
@@ -311,7 +311,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-26,APD,XLB,EMA20 Pullback,27,308.57,297.85,335.37,14,4320,150,375,2.5,Neutral,Yes,,,,,
 2026-08-26,XBI,XBI,ATH Breakout,27,168.79,155.86,201.1,23,3882,297,743,2.5,N/A,Yes,,,,,
 2026-08-26,WELL,XLRE,EMA20 Pullback,27,241.99,231.21,268.96,18,4356,194,485,2.5,Positive,Yes,,,,,
-2026-08-26,BAX,XLV,EMA20 Pullback,27,26.68,25.75,29.02,168,4483,157,393,2.5,Positive,Yes,,,,,
+2026-08-26,BAX,XLV,EMA20 Pullback,27,26.68,25.75,29.02,168,4483,157,393,2.5,Positive,Yes,STOPPED,2026-09-01,25.75,-156.24,-3.49
 2026-08-26,PSX,XLE,ATH Breakout,27,242.23,222.24,292.2,15,3633,300,750,2.5,Positive,Yes,,,,,
 2026-08-31,ADP,XLI,Squeeze Breakout,34,286.78,269.56,329.83,15,4302,258,646,2.5,Slightly Positive,Yes,,,,,
 2026-08-31,MPC,XLE,ATH Breakout,31,372.33,347.67,433.98,12,4468,296,740,2.5,Neutral,Yes,,,,,
@@ -327,3 +327,5 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-01,CVX,XLE,EMA20 Pullback,27,208.49,197.82,235.15,21,4378,224,560,2.5,Neutral,No,,,,,
 2026-09-01,CAH,XLV,EMA20 Pullback,27,239.31,227.68,268.39,18,4308,209,523,2.5,Positive,No,,,,,
 2026-09-01,AAPL,XLK,Squeeze Breakout,31,324.85,307.01,369.45,13,4223,232,580,2.5,Slightly Negative,No,,,,,
+2026-09-01,MPC,XLE,ATH Breakout,28,379.06,347.67,457.53,9,3412,283,706,2.49,Positive,No,,,,,
+2026-09-01,CF,XLB,ATH Breakout,26,134.91,119.67,173.02,19,2563,290,724,2.5,Neutral,Yes,,,,,
