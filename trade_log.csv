@@ -335,3 +335,6 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-02,NVDA,SMH,EMA20 Pullback,29,226.45,207.25,274.45,15,3397,288,720,2.5,Positive,Yes,,,,,
 2026-09-02,APD,XLB,EMA20 Pullback,29,309.73,297.85,339.43,14,4336,166,416,2.51,Neutral,No,,,,,
 2026-09-02,MPC,XLE,ATH Breakout,28,387.59,357.32,463.26,9,3488,272,681,2.5,Positive,Yes,,,,,
+2026-09-02,ADM,XLP,ATH Breakout,29,85.46,77.25,105.99,36,3077,296,739,2.5,Positive,No,,,,,
+2026-09-02,SQM,XLB,EMA20 Pullback,28,80.47,74.18,96.2,47,3782,296,739,2.5,Positive,Yes,,,,,
+2026-09-02,HOOD,XLF,EMA20 Pullback,26,105.93,93.65,136.63,24,2542,295,737,2.5,Positive,No,,,,,
