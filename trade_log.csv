@@ -348,3 +348,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-03,ABNB,XLY,EMA20 Pullback,30,186.38,180.16,201.93,24,4473,149,373,2.5,Positive,No,,,,,
 2026-09-03,JPM,XLF,EMA20 Pullback,28,361.73,350.37,390.13,12,4341,136,341,2.51,Slightly Negative,Yes,,,,,
 2026-09-03,TECH,XLV,EMA20 Pullback,29,72.45,72.14,73.23,62,4492,19,48,2.53,Positive,Yes,,,,,
+2026-09-03,BIIB,XBI,EMA20 Pullback,27,224.51,213.58,251.83,20,4490,219,546,2.49,Neutral,Yes,,,,,
