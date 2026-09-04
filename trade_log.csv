@@ -357,3 +357,5 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-04,AMP,XLF,EMA20 Pullback,27,564.04,541.28,620.96,7,3948,159,398,2.5,Positive,Yes,,,,,
 2026-09-04,TSM,SMH,EMA20 Pullback,27,428.76,405.15,487.79,10,4288,236,590,2.5,Positive,No,,,,,
 2026-09-04,MSFT,XLK,EMA20 Pullback,26,500.73,481.86,547.89,8,4006,151,377,2.5,Slightly Positive,No,,,,,
+2026-09-04,CTVA,XLB,ATH Breakout,25,87.86,81.1,104.77,44,3866,298,744,2.5,Slightly Positive,Yes,,,,,
+2026-09-04,ANET,XLK,EMA20 Pullback,25,193.78,181.27,225.05,23,4457,288,719,2.5,Positive,Yes,,,,,
