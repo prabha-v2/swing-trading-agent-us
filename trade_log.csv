@@ -354,3 +354,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-04,A,XLV,EMA20 Pullback,28,151.43,147.6,161.02,29,4392,111,278,2.5,Positive,Yes,,,,,
 2026-09-04,INCY,XBI,EMA20 Pullback,27,127.65,121.61,142.77,35,4468,212,529,2.5,Slightly Positive,Yes,,,,,
 2026-09-04,EL,XLP,Trend Continuation,27,103.21,98.75,114.34,43,4438,192,479,2.49,Slightly Negative,Yes,,,,,
+2026-09-04,AMP,XLF,EMA20 Pullback,27,564.04,541.28,620.96,7,3948,159,398,2.5,Positive,Yes,,,,,
