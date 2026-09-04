@@ -323,7 +323,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-08-31,ARES,XLF,EMA20 Pullback,25,143.17,137.12,158.3,31,4438,188,469,2.49,Positive,Yes,STOPPED,2026-09-04,137.12,-187.55,-4.23
 2026-09-01,ADM,XLP,EMA20 Pullback,28,83.39,75.86,102.21,39,3252,294,734,2.5,Positive,Yes,,,,,
 2026-09-01,WELL,XLRE,EMA20 Pullback,28,242.68,233.52,265.56,18,4368,165,412,2.5,Positive,Yes,,,,,
-2026-09-01,VTR,XLRE,EMA20 Pullback,28,93.12,90.28,100.24,48,4470,137,341,2.49,Positive,Yes,,,,,
+2026-09-01,VTR,XLRE,EMA20 Pullback,28,93.12,90.28,100.24,48,4470,137,341,2.49,Positive,Yes,STOPPED,2026-09-04,90.28,-136.32,-3.05
 2026-09-01,CVX,XLE,EMA20 Pullback,27,208.49,197.82,235.15,21,4378,224,560,2.5,Neutral,No,,,,,
 2026-09-01,CAH,XLV,EMA20 Pullback,27,239.31,227.68,268.39,18,4308,209,523,2.5,Positive,No,,,,,
 2026-09-01,AAPL,XLK,Squeeze Breakout,31,324.85,307.01,369.45,13,4223,232,580,2.5,Slightly Negative,No,,,,,
@@ -355,3 +355,5 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-04,INCY,XBI,EMA20 Pullback,27,127.65,121.61,142.77,35,4468,212,529,2.5,Slightly Positive,Yes,,,,,
 2026-09-04,EL,XLP,Trend Continuation,27,103.21,98.75,114.34,43,4438,192,479,2.49,Slightly Negative,Yes,,,,,
 2026-09-04,AMP,XLF,EMA20 Pullback,27,564.04,541.28,620.96,7,3948,159,398,2.5,Positive,Yes,,,,,
+2026-09-04,TSM,SMH,EMA20 Pullback,27,428.76,405.15,487.79,10,4288,236,590,2.5,Positive,No,,,,,
+2026-09-04,MSFT,XLK,EMA20 Pullback,26,500.73,481.86,547.89,8,4006,151,377,2.5,Slightly Positive,No,,,,,
