@@ -373,3 +373,6 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-08,SNOW,XLK,EMA20 Pullback,27,338.76,303.89,425.93,8,2710,279,697,2.5,Positive,Yes,,,,,
 2026-09-08,BAC,XLF,EMA20 Pullback,26,62.78,60.79,67.77,71,4458,142,354,2.49,Positive,Yes,,,,,
 2026-09-08,URA,URA,Squeeze Setup,25,48.08,43.55,59.41,66,3173,299,747,2.5,N/A,Yes,,,,,
+2026-09-08,HUM,XLV,EMA20 Pullback,31,406.35,380.95,469.83,11,4470,279,698,2.5,Slightly Positive,No,,,,,
+2026-09-08,CVX,XLE,EMA20 Pullback,26,210.71,199.44,238.89,21,4425,237,592,2.5,Positive,Yes,,,,,
+2026-09-08,CF,XLB,ATH Breakout,25,135.69,122.19,169.44,22,2985,297,742,2.5,Positive,Yes,,,,,
