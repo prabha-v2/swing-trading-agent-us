@@ -381,3 +381,5 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-09,CVX,XLE,EMA20 Pullback,27,212.78,201.13,241.91,21,4468,245,612,2.5,Positive,No,,,,,
 2026-09-09,BAC,XLF,EMA20 Pullback,27,62.79,60.79,67.79,71,4458,142,355,2.5,Positive,Yes,,,,,
 2026-09-09,PLTR,XLK,EMA20 Pullback,26,170.79,165.71,183.47,26,4440,132,330,2.5,Negative,Yes,,,,,
+2026-09-09,XOM,XLE,EMA20 Pullback,27,164.73,155.32,188.25,27,4448,254,635,2.5,Slightly Positive,Yes,,,,,
+2026-09-09,MSFT,XLK,EMA20 Pullback,27,493.09,487.31,507.54,9,4438,52,130,2.5,Slightly Positive,Yes,,,,,
