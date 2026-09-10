@@ -986,10 +986,17 @@ def check_stock(symbol, df, spy_df, hot_sectors, sector_perf, active_sector_map,
         if up_days_3 == 3 and move_3d > 0.06:
             overextended = True
 
-        if overextended:
-            score -= 3
-        elif no_pullback_1d and move_3d > 0.05:
-            score -= 1
+        # Institutional breakout exception: when volume is 3x+ normal AND stock is
+        # near/at its 52-week high, the move is likely real institutional buying — not
+        # retail chasing. Applying the overextension penalty here would have filtered
+        # out CRM/BE-style gap-and-hold breakouts. Skip the penalty in this case.
+        is_institutional_breakout = rvol > 3.0 and ath_dist > 0.92
+
+        if not is_institutional_breakout:
+            if overextended:
+                score -= 3
+            elif no_pullback_1d and move_3d > 0.05:
+                score -= 1
 
         if obv_rising and obv_trend_pos:               score += 2
         elif obv_rising:                                score += 1
@@ -1012,7 +1019,42 @@ def check_stock(symbol, df, spy_df, hot_sectors, sector_perf, active_sector_map,
         stock_sector = active_sector_map.get(symbol, "OTHER")
         if stock_sector in hot_sectors:  score += 2
 
-        if score < SCORE_THRESHOLD:
+        # ---- SETUP TYPE (determined before threshold so we can adjust it) ----
+        if bb_squeeze and latest['Close'] > prev['HH20']:
+            setup_type = "Squeeze Breakout"
+        elif latest['Close'] > prev['HH20'] and rvol > 2.0:
+            setup_type = "Volume Breakout"
+        elif dist < 0.05 and rsi > 50:
+            setup_type = "EMA20 Pullback"
+        elif ath_dist > 0.95:
+            setup_type = "ATH Breakout"
+        elif bb_squeeze:
+            setup_type = "Squeeze Setup"
+        else:
+            setup_type = "Trend Continuation"
+
+        # Breakout setups (Volume, ATH, Squeeze) already embed hard price/volume
+        # evidence in their definition — they don't need as many confirmatory points
+        # from the EMA-stack and RS scoring to be valid. Lowering their bar by 4
+        # points (22 → 18) catches early-stage breakouts that haven't yet built a
+        # clean EMA stack but have the volume and price proof.
+        if setup_type in ("Volume Breakout", "ATH Breakout", "Squeeze Breakout"):
+            effective_threshold = SCORE_THRESHOLD - 4
+        else:
+            effective_threshold = SCORE_THRESHOLD
+
+        # Momentum alert: high-volume breakout near 52w high with a minimum sanity
+        # score — flagged even if it doesn't reach the effective_threshold. Sent as
+        # a separate "⚡ MOMENTUM ALERT" so the user knows it's higher risk.
+        is_momentum_alert = (
+            rvol > 2.5 and
+            float(latest['Close']) > float(prev['HH20']) and
+            ath_dist > 0.90 and
+            float(latest['Close']) > float(latest['EMA50']) and
+            score >= 12
+        )
+
+        if score < effective_threshold and not is_momentum_alert:
             return None
 
         # ---- POSITION SIZING ----
@@ -1034,19 +1076,6 @@ def check_stock(symbol, df, spy_df, hot_sectors, sector_perf, active_sector_map,
         target   = entry + (risk * RR_RATIO)
         invested = round(entry * size, 0)
         acct_pct = round((invested / ACCOUNT_SIZE) * 100, 1)
-
-        if bb_squeeze and latest['Close'] > prev['HH20']:
-            setup_type = "Squeeze Breakout"
-        elif latest['Close'] > prev['HH20'] and rvol > 2.0:
-            setup_type = "Volume Breakout"
-        elif dist < 0.05 and rsi > 50:
-            setup_type = "EMA20 Pullback"
-        elif ath_dist > 0.95:
-            setup_type = "ATH Breakout"
-        elif bb_squeeze:
-            setup_type = "Squeeze Setup"
-        else:
-            setup_type = "Trend Continuation"
 
         if candle_score >= 3:    candle_label = "Strong"
         elif candle_score >= 1:  candle_label = "Good"
@@ -1085,8 +1114,11 @@ def check_stock(symbol, df, spy_df, hot_sectors, sector_perf, active_sector_map,
             "ADX":        adx_label,
             "SectorDay":  sector_day_str,
             "SectorWeek": sector_week_str,
-            "Squeeze":  "Yes" if bb_squeeze else "No",
-            "Extension": extension_label,
+            "Squeeze":    "Yes" if bb_squeeze else "No",
+            "Extension":  extension_label,
+            "RVOL":       round(rvol, 1),
+            "Move3d":     f"{move_3d:+.1%}",
+            "MomentumAlert": is_momentum_alert and score < effective_threshold,
             "Entry":    round(entry, 2),
             "Stop":     round(float(stop), 2),
             "Target":   round(float(target), 2),
@@ -1166,6 +1198,39 @@ sector_map = {
 }
 
 # =========================================
+# TOP MOVERS INJECTION
+# =========================================
+
+def get_top_movers(n: int = 40) -> list:
+    """
+    Fetch today's top-gaining US stocks from the Yahoo Finance day-gainers
+    screener. Returns a list of ticker symbols that gained >3% on the day
+    and aren't already in the curated universe — injects them so the scanner
+    can catch breakouts that aren't in the S&P 500 or the hardcoded list.
+    """
+    try:
+        url = "https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved"
+        params  = {"scrIds": "day_gainers", "count": n, "formatted": "false"}
+        headers = {"User-Agent": "Mozilla/5.0"}
+        r = requests.get(url, params=params, headers=headers, timeout=10)
+        if not r.ok:
+            print(f"  ⚠️ Top movers fetch HTTP {r.status_code}")
+            return []
+        quotes = r.json().get("finance", {}).get("result", [{}])[0].get("quotes", [])
+        movers = [
+            q["symbol"] for q in quotes
+            if q.get("regularMarketChangePercent", 0) > 3.0
+            and q.get("regularMarketVolume", 0) > 500_000
+            and "." not in q.get("symbol", ".")   # skip ADRs like BRK.B
+        ]
+        print(f"  📈 Top movers today: {movers[:20]}")
+        return movers
+    except Exception as e:
+        print(f"  ⚠️ Top movers fetch failed: {e}")
+        return []
+
+
+# =========================================
 # MAIN
 # =========================================
 
@@ -1221,6 +1286,14 @@ def run_agent():
 
     # ---- Step 2: Build universe ----
     active_sector_map = get_dynamic_universe(sector_map) if EXPAND_UNIVERSE else dict(sector_map)
+
+    # Inject today's top movers so stocks outside the S&P 500 or curated list
+    # still get scanned on their breakout day (e.g. mid-caps, recent IPOs).
+    print("\nFetching today's top movers...")
+    for sym in get_top_movers(40):
+        if sym not in active_sector_map:
+            active_sector_map[sym] = "OTHER"
+
     all_stocks = list(dict.fromkeys(active_sector_map.keys()))
 
     # ---- Step 3: Portfolio risk snapshot ----
@@ -1326,15 +1399,21 @@ def run_agent():
         )
         return
 
-    picks = sorted(picks, key=lambda x: (x['Score'], x['Reward$']), reverse=True)
+    # ---- Step 6: Separate quality picks from momentum-only alerts ----
+    regular_picks = [p for p in picks if not p.get('MomentumAlert')]
+    momentum_only = [p for p in picks if p.get('MomentumAlert')]
 
-    # ---- Step 6: News sentiment + 15-min confirmation on top picks ----
-    top_picks      = picks[:TOP_PICKS]
-    sentiment_map  = {}   # symbol -> (score, label, headlines)
-    confirmed_map  = {}   # symbol -> (bool, reason)
+    regular_picks = sorted(regular_picks, key=lambda x: (x['Score'], x['Reward$']), reverse=True)
+    momentum_only = sorted(momentum_only, key=lambda x: x['RVOL'],                  reverse=True)
 
-    print(f"\nRunning post-scan checks on top {len(top_picks)} picks...")
-    for pick in top_picks:
+    top_picks     = regular_picks[:TOP_PICKS]
+    sentiment_map = {}   # symbol -> (score, label, headlines)
+    confirmed_map = {}   # symbol -> (bool, reason)
+
+    # Run news + 15-min on regular top picks; news-only on momentum alerts
+    all_checked = top_picks + momentum_only[:3]
+    print(f"\nRunning post-scan checks on {len(all_checked)} picks ({len(top_picks)} regular + {len(momentum_only[:3])} momentum)...")
+    for pick in all_checked:
         sym = pick['Symbol']
 
         if NEWS_SENTIMENT:
@@ -1343,7 +1422,8 @@ def run_agent():
             print(f"  📰 {sym} news: {nl} (score {ns:+d})")
             time.sleep(0.3)
 
-        if CHECK_15MIN:
+        # Skip 15-min for momentum alerts — they're already in motion
+        if CHECK_15MIN and not pick.get('MomentumAlert'):
             ok, reason = passes_15min_check(sym, pick['Entry'])
             confirmed_map[sym] = (ok, reason)
             status = "✅" if ok else "❌"
@@ -1366,38 +1446,35 @@ def run_agent():
         f"Hot    : {hot_str}\n"
         f"Portfolio: {pos_str} | Heat: {total_heat:.0%}\n"
         f"Universe : {len(all_stocks)} stocks scanned\n"
-        f"Setups : {len(picks)} found\n"
-        f"Top {len(top_picks)} picks below — alerts only."
+        f"Quality setups : {len(regular_picks)} found\n"
+        f"Momentum alerts: {len(momentum_only)} found\n"
+        f"Top {len(top_picks)} quality picks + up to 3 momentum alerts below."
     )
 
+    # --- Quality picks ---
     for pick in top_picks:
         sym  = pick['Symbol']
         rr   = round(pick['Reward$'] / pick['Risk$'], 1) if pick['Risk$'] > 0 else 0
 
-        # News block
         ns, nl, headlines = sentiment_map.get(sym, (0, "N/A", []))
         news_emoji = "📰✅" if ns >= 2 else "📰⚠️" if ns <= -2 else "📰"
         news_block = f"{news_emoji} News   : {nl}"
         if headlines:
             news_block += f"\n  → {headlines[0][:60]}"
 
-        # 15min confirmation block
         ok15, reason15 = confirmed_map.get(sym, (True, "Not checked"))
         conf_emoji = "✅" if ok15 else "⚠️"
         conf_block = f"{conf_emoji} 15m    : {reason15}"
 
-        # Negative news hard warning
-        news_warn = ""
-        if ns <= -2:
-            news_warn = "\n⚠️ NEGATIVE NEWS — review headlines before entering"
-
-        ext_warn = f"\n⚠️ {pick['Extension']}" if pick['Extension'].startswith("⚠️") else ""
+        news_warn = "\n⚠️ NEGATIVE NEWS — review headlines before entering" if ns <= -2 else ""
+        ext_warn  = f"\n⚠️ {pick['Extension']}" if pick['Extension'].startswith("⚠️") else ""
 
         msg = (
             f"{'='*34}\n"
             f"🚀 {sym}  [{pick['Sector']}]\n"
             f"Setup   : {pick['Setup']}\n"
             f"Score   : {pick['Score']}\n"
+            f"RVOL    : {pick['RVOL']}x | Move: {pick['Move3d']}\n"
             f"Candle  : {pick['Candle']}\n"
             f"MACD    : {pick['MACD']}\n"
             f"OBV     : {pick['OBV']}\n"
@@ -1417,6 +1494,41 @@ def run_agent():
             f"RR      : 1:{rr}"
             f"{news_warn}"
             f"{ext_warn}\n"
+            f"{'='*34}"
+        )
+        send_telegram(msg)
+        time.sleep(0.5)
+
+    # --- Momentum-only alerts (clearly labeled higher-risk) ---
+    for pick in momentum_only[:3]:
+        sym = pick['Symbol']
+        rr  = round(pick['Reward$'] / pick['Risk$'], 1) if pick['Risk$'] > 0 else 0
+
+        ns, nl, headlines = sentiment_map.get(sym, (0, "N/A", []))
+        news_emoji = "📰✅" if ns >= 2 else "📰⚠️" if ns <= -2 else "📰"
+        news_block = f"{news_emoji} News: {nl}"
+        if headlines:
+            news_block += f"\n  → {headlines[0][:60]}"
+        news_warn = "\n⚠️ NEGATIVE NEWS — review before entering" if ns <= -2 else ""
+
+        msg = (
+            f"{'='*34}\n"
+            f"⚡ MOMENTUM ALERT — {sym}  [{pick['Sector']}]\n"
+            f"⚠️ Below quality threshold — HIGHER RISK / SMALLER SIZE\n"
+            f"{'='*34}\n"
+            f"Setup    : {pick['Setup']}\n"
+            f"Score    : {pick['Score']} (quality bar: {SCORE_THRESHOLD})\n"
+            f"RVOL     : {pick['RVOL']}x | Move: {pick['Move3d']}\n"
+            f"Extension: {pick['Extension']}\n"
+            f"Sector Mom: 1D {pick['SectorDay']} | 1W {pick['SectorWeek']}\n"
+            f"{news_block}\n"
+            f"Entry   : ${pick['Entry']}\n"
+            f"Stop    : ${pick['Stop']}\n"
+            f"Target  : ${pick['Target']}\n"
+            f"Size    : {pick['Size']} shares (consider ½ size)\n"
+            f"Risk    : ${int(pick['Risk$']):,}\n"
+            f"RR      : 1:{rr}"
+            f"{news_warn}\n"
             f"{'='*34}"
         )
         send_telegram(msg)
