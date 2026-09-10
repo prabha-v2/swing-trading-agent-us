@@ -33,8 +33,10 @@ TRADE_LOG_FILE    = "trade_log.csv"
 MAX_PORTFOLIO_HEAT  = 0.60        # max 60% of account deployed at once
 MAX_SECTOR_HEAT     = 0.20        # max 20% of account in any one sector
 
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
-CHAT_ID        = os.environ.get("CHAT_ID", "")
+TELEGRAM_TOKEN    = os.environ.get("TELEGRAM_TOKEN", "")
+CHAT_ID           = os.environ.get("CHAT_ID", "")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+CLAUDE_MODEL      = "claude-haiku-4-5-20251001"   # fast + cheap for daily scans; swap to claude-sonnet-4-6 for deeper reasoning
 
 # =========================================
 # TELEGRAM
@@ -1117,6 +1119,7 @@ def check_stock(symbol, df, spy_df, hot_sectors, sector_perf, active_sector_map,
             "Squeeze":    "Yes" if bb_squeeze else "No",
             "Extension":  extension_label,
             "RVOL":       round(rvol, 1),
+            "RSI":        round(rsi, 1),
             "Move3d":     f"{move_3d:+.1%}",
             "MomentumAlert": is_momentum_alert and score < effective_threshold,
             "Entry":    round(entry, 2),
@@ -1196,6 +1199,178 @@ sector_map = {
     "COPX":"XLB",  "WPM":"XLB",   "GOLD":"XLB",  "MP":"XLB",
     "ALB":"XLB",   "SQM":"XLB",
 }
+
+# =========================================
+# SIGNAL PERFORMANCE (reads trade_log.csv)
+# =========================================
+
+def get_recent_performance(n_days: int = 60) -> dict:
+    """
+    Read trade_log.csv and compute signal quality stats for the last n_days.
+
+    Logs every signal the bot generated — not only the trades the user took.
+    This measures the screener's accuracy, which Claude uses to weight setups
+    (e.g. "ATH Breakout has 70% win rate lately, EMA Pullback only 40%").
+    """
+    path = Path(TRADE_LOG_FILE)
+    if not path.exists():
+        return {}
+    try:
+        df = pd.read_csv(path)
+        if df.empty or "outcome" not in df.columns:
+            return {}
+
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        cutoff  = datetime.now() - timedelta(days=n_days)
+        recent  = df[df["date"] >= cutoff].copy()
+        closed  = recent[recent["outcome"].isin(["TARGET HIT", "STOPPED"])].copy()
+
+        def stats(rows):
+            total = len(rows)
+            wins  = int((rows["outcome"] == "TARGET HIT").sum())
+            return {
+                "trades":   total,
+                "wins":     wins,
+                "win_rate": round(wins / total, 2) if total > 0 else None,
+            }
+
+        by_setup  = {g: stats(gdf) for g, gdf in closed.groupby("setup")  if len(gdf) >= 2}
+        by_sector = {g: stats(gdf) for g, gdf in closed.groupby("sector") if len(gdf) >= 2}
+
+        last5  = closed.sort_values("outcome_date").tail(5)
+        streak = " → ".join(
+            "✅W" if r == "TARGET HIT" else "❌L"
+            for r in last5["outcome"]
+        ) if not last5.empty else "No closed trades yet"
+
+        return {
+            "window_days":    n_days,
+            "total_signals":  len(recent),
+            "overall":        stats(closed),
+            "by_setup":       by_setup,
+            "by_sector":      by_sector,
+            "recent_streak":  streak,
+        }
+    except Exception as e:
+        print(f"  ⚠️ Performance read failed: {e}")
+        return {}
+
+
+# =========================================
+# CLAUDE REASONING LAYER
+# =========================================
+
+def claude_reason(candidates: list, market_ctx: dict, perf: dict) -> dict:
+    """
+    Send candidates + market context + recent signal performance to Claude.
+    Claude ranks the picks by conviction, flags ones to skip, and gives a
+    one-paragraph market read. Returns a parsed dict; empty dict on failure.
+
+    The user won't take every alert — Claude's job is to help them prioritise
+    and to explain the 'why' using actual recent win-rate data from trade_log.
+    """
+    if not ANTHROPIC_API_KEY:
+        print("  ⚠️ ANTHROPIC_API_KEY not set — skipping Claude reasoning")
+        return {}
+
+    try:
+        import anthropic
+    except ImportError:
+        print("  ⚠️ anthropic package not installed — pip install anthropic")
+        return {}
+
+    # ---- Build performance context string ----
+    perf_lines = []
+    if perf:
+        overall = perf.get("overall", {})
+        wr      = overall.get("win_rate")
+        n       = overall.get("trades", 0)
+        perf_lines.append(
+            f"Overall win rate (last {perf.get('window_days', 60)}d): "
+            + (f"{int(wr*100)}% across {n} closed signals" if wr is not None else "Not enough data yet")
+        )
+        by_setup = perf.get("by_setup", {})
+        if by_setup:
+            perf_lines.append("Win rate by setup type:")
+            for s, v in sorted(by_setup.items(), key=lambda x: -(x[1].get("win_rate") or 0)):
+                perf_lines.append(f"  {s}: {int(v['win_rate']*100)}% ({v['wins']}/{v['trades']})")
+        by_sector = perf.get("by_sector", {})
+        if by_sector:
+            perf_lines.append("Win rate by sector:")
+            for s, v in sorted(by_sector.items(), key=lambda x: -(x[1].get("win_rate") or 0)):
+                perf_lines.append(f"  {s}: {int(v['win_rate']*100)}% ({v['wins']}/{v['trades']})")
+        perf_lines.append(f"Recent streak (last 5 closed): {perf.get('recent_streak', 'N/A')}")
+
+    # ---- Build candidates string ----
+    cand_lines = []
+    for i, c in enumerate(candidates, 1):
+        cand_lines.append(
+            f"{i}. {c['Symbol']} [{c['Sector']}] | {c['Setup']} | "
+            f"Score:{c['Score']} RVOL:{c['RVOL']}x RSI:{c['RSI']} "
+            f"MACD:{c['MACD']} OBV:{c['OBV']} ADX:{c['ADX']} "
+            f"Entry:${c['Entry']} Stop:${c['Stop']} Target:${c['Target']} "
+            f"Extension:{c['Extension']} "
+            f"Sector 1D:{c['SectorDay']} 1W:{c['SectorWeek']}"
+        )
+
+    prompt = f"""You are a professional swing trading analyst reviewing today's scan for US stocks.
+The user will review these alerts and decide which trades to actually take — they do NOT enter every signal.
+Your job: help them prioritise and explain the WHY using the performance data below.
+
+MARKET CONDITIONS:
+- S&P 500  : {market_ctx.get('regime', 'Bullish')}
+- VIX      : {market_ctx.get('vix_label', 'N/A')}
+- Breadth  : {market_ctx.get('breadth_label', 'N/A')} ({market_ctx.get('breadth', 'N/A')}% above EMA50)
+- Hot sectors: {market_ctx.get('hot_str', 'None')}
+
+RECENT SIGNAL PERFORMANCE (measures screener accuracy, not user P&L):
+{chr(10).join(perf_lines) if perf_lines else 'No performance data yet — first scan.'}
+
+TODAY'S CANDIDATES ({len(candidates)} stocks, ranked by score):
+{chr(10).join(cand_lines)}
+
+Respond ONLY with a valid JSON object — no markdown fences, no extra text:
+{{
+  "market_read": "<2 sentences: current market tone and what it means for swing trades today>",
+  "picks": [
+    {{"symbol": "TICKER", "conviction": "high|medium|low",
+      "reason": "<1-2 sentences referencing indicators AND recent performance data>"}}
+  ],
+  "skip": [
+    {{"symbol": "TICKER", "reason": "<1 sentence why you'd pass on this one>"}}
+  ],
+  "overall_confidence": "high|medium|low",
+  "confidence_reason": "<one sentence>"
+}}
+
+Rules:
+- picks: select the top 3-5 by conviction. Downweight setups/sectors with poor recent win rate.
+- skip: list any candidates you'd avoid (sector exhaustion, poor setup history, overextension).
+- Be specific — cite actual numbers from the indicator data and performance stats.
+- A setup with 70%+ win rate recently deserves higher conviction than one at 40%.
+"""
+
+    try:
+        client   = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        response = client.messages.create(
+            model      = CLAUDE_MODEL,
+            max_tokens = 1024,
+            messages   = [{"role": "user", "content": prompt}],
+        )
+        text = response.content[0].text.strip()
+        # Strip accidental markdown fences
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        print(f"  ⚠️ Claude JSON parse error: {e}")
+        return {}
+    except Exception as e:
+        print(f"  ⚠️ Claude API error: {e}")
+        return {}
+
 
 # =========================================
 # TOP MOVERS INJECTION
@@ -1400,42 +1575,90 @@ def run_agent():
         return
 
     # ---- Step 6: Separate quality picks from momentum-only alerts ----
-    regular_picks = [p for p in picks if not p.get('MomentumAlert')]
-    momentum_only = [p for p in picks if p.get('MomentumAlert')]
+    regular_picks = sorted(
+        [p for p in picks if not p.get('MomentumAlert')],
+        key=lambda x: (x['Score'], x['Reward$']), reverse=True
+    )
+    momentum_only = sorted(
+        [p for p in picks if p.get('MomentumAlert')],
+        key=lambda x: x['RVOL'], reverse=True
+    )
+    # Give Claude up to 10 candidates to reason over (more context = better ranking)
+    candidates = regular_picks[:10]
 
-    regular_picks = sorted(regular_picks, key=lambda x: (x['Score'], x['Reward$']), reverse=True)
-    momentum_only = sorted(momentum_only, key=lambda x: x['RVOL'],                  reverse=True)
+    hot_str = ", ".join(sorted(hot_sectors)) if hot_sectors else "None"
+    pos_str = f"{len(positions)} open" if positions else "None"
 
-    top_picks     = regular_picks[:TOP_PICKS]
-    sentiment_map = {}   # symbol -> (score, label, headlines)
-    confirmed_map = {}   # symbol -> (bool, reason)
+    # ---- Step 6b: Read recent signal performance from trade_log ----
+    print("\nReading recent signal performance from trade log...")
+    perf = get_recent_performance(60)
+    if perf and perf.get("overall", {}).get("trades", 0) > 0:
+        ov = perf["overall"]
+        wr = ov.get("win_rate")
+        print(f"  Last 60d: {int(wr*100)}% win rate over {ov['trades']} closed signals" if wr else "  No closed signals yet")
 
-    # Run news + 15-min on regular top picks; news-only on momentum alerts
-    all_checked = top_picks + momentum_only[:3]
-    print(f"\nRunning post-scan checks on {len(all_checked)} picks ({len(top_picks)} regular + {len(momentum_only[:3])} momentum)...")
+    # ---- Step 6c: Claude reasoning layer ----
+    market_ctx = {
+        "regime":        "Bullish (EMA50 + EMA200)",
+        "vix_label":     vix_label,
+        "breadth_label": breadth_label,
+        "breadth":       breadth,
+        "hot_str":       hot_str,
+    }
+    claude_output = {}
+    if candidates:
+        print(f"\nAsking Claude to reason over {len(candidates)} candidates...")
+        claude_output = claude_reason(candidates, market_ctx, perf)
+        if claude_output:
+            print(f"  🧠 Market read: {claude_output.get('market_read','')[:80]}...")
+            print(f"  🧠 Claude picks: {[p['symbol'] for p in claude_output.get('picks',[])]}")
+            print(f"  🧠 Claude skip : {[s['symbol'] for s in claude_output.get('skip',[])]}")
+
+    # ---- Step 6d: Re-rank top_picks by Claude's conviction order ----
+    claude_picks_map = {}
+    skip_set         = set()
+    if claude_output and claude_output.get("picks"):
+        claude_order     = [p["symbol"] for p in claude_output["picks"]]
+        claude_picks_map = {p["symbol"]: p for p in claude_output["picks"]}
+        skip_set         = {s["symbol"] for s in claude_output.get("skip", [])}
+        # Reorder candidates to match Claude's ranking; append any Claude didn't mention
+        ordered  = [c for sym in claude_order for c in candidates if c['Symbol'] == sym]
+        fallback = [c for c in candidates if c['Symbol'] not in set(claude_order) | skip_set]
+        top_picks = (ordered + fallback)[:TOP_PICKS]
+    else:
+        top_picks = candidates[:TOP_PICKS]
+
+    # ---- Step 6e: News + 15-min on final top picks + momentum alerts ----
+    sentiment_map = {}
+    confirmed_map = {}
+    all_checked   = top_picks + momentum_only[:3]
+    print(f"\nRunning post-scan checks on {len(all_checked)} picks ({len(top_picks)} quality + {min(len(momentum_only),3)} momentum)...")
     for pick in all_checked:
         sym = pick['Symbol']
-
         if NEWS_SENTIMENT:
             ns, nl, nh = get_news_sentiment(sym)
             sentiment_map[sym] = (ns, nl, nh)
             print(f"  📰 {sym} news: {nl} (score {ns:+d})")
             time.sleep(0.3)
-
         # Skip 15-min for momentum alerts — they're already in motion
         if CHECK_15MIN and not pick.get('MomentumAlert'):
             ok, reason = passes_15min_check(sym, pick['Entry'])
             confirmed_map[sym] = (ok, reason)
-            status = "✅" if ok else "❌"
-            print(f"  {status} {sym} 15m: {reason}")
+            print(f"  {'✅' if ok else '❌'} {sym} 15m: {reason}")
             time.sleep(0.5)
 
     # ---- Step 7: Log picks ----
     log_picks(top_picks, confirmed_map, sentiment_map)
 
     # ---- Step 8: Telegram alerts ----
-    hot_str = ", ".join(sorted(hot_sectors)) if hot_sectors else "None"
-    pos_str = f"{len(positions)} open" if positions else "None"
+
+    # Market summary — include Claude's market read and confidence
+    market_read  = claude_output.get("market_read", "") if claude_output else ""
+    conf_label   = (
+        f"{claude_output.get('overall_confidence','').upper()} — {claude_output.get('confidence_reason','')}"
+        if claude_output else "N/A (Claude disabled)"
+    )
+    claude_summary = f"\n🧠 {market_read}\n🎯 Confidence: {conf_label}" if market_read else ""
 
     send_telegram(
         f"📊 US PRO SCAN — {datetime.now().strftime('%d %b %Y %H:%M')}\n"
@@ -1446,15 +1669,14 @@ def run_agent():
         f"Hot    : {hot_str}\n"
         f"Portfolio: {pos_str} | Heat: {total_heat:.0%}\n"
         f"Universe : {len(all_stocks)} stocks scanned\n"
-        f"Quality setups : {len(regular_picks)} found\n"
-        f"Momentum alerts: {len(momentum_only)} found\n"
-        f"Top {len(top_picks)} quality picks + up to 3 momentum alerts below."
+        f"Quality  : {len(regular_picks)} setups | Momentum: {len(momentum_only)} alerts"
+        f"{claude_summary}"
     )
 
-    # --- Quality picks ---
+    # --- Quality picks (Claude-ranked) ---
     for pick in top_picks:
-        sym  = pick['Symbol']
-        rr   = round(pick['Reward$'] / pick['Risk$'], 1) if pick['Risk$'] > 0 else 0
+        sym = pick['Symbol']
+        rr  = round(pick['Reward$'] / pick['Risk$'], 1) if pick['Risk$'] > 0 else 0
 
         ns, nl, headlines = sentiment_map.get(sym, (0, "N/A", []))
         news_emoji = "📰✅" if ns >= 2 else "📰⚠️" if ns <= -2 else "📰"
@@ -1463,8 +1685,15 @@ def run_agent():
             news_block += f"\n  → {headlines[0][:60]}"
 
         ok15, reason15 = confirmed_map.get(sym, (True, "Not checked"))
-        conf_emoji = "✅" if ok15 else "⚠️"
-        conf_block = f"{conf_emoji} 15m    : {reason15}"
+        conf_block = f"{'✅' if ok15 else '⚠️'} 15m    : {reason15}"
+
+        # Claude conviction block
+        c_pick = claude_picks_map.get(sym, {})
+        if c_pick:
+            icon = {"high": "🟢", "medium": "🟡", "low": "🔴"}.get(c_pick.get("conviction",""), "⚪")
+            claude_block = f"\n🧠 {icon} {c_pick.get('conviction','').upper()}: {c_pick.get('reason','')}"
+        else:
+            claude_block = ""
 
         news_warn = "\n⚠️ NEGATIVE NEWS — review headlines before entering" if ns <= -2 else ""
         ext_warn  = f"\n⚠️ {pick['Extension']}" if pick['Extension'].startswith("⚠️") else ""
@@ -1473,8 +1702,9 @@ def run_agent():
             f"{'='*34}\n"
             f"🚀 {sym}  [{pick['Sector']}]\n"
             f"Setup   : {pick['Setup']}\n"
-            f"Score   : {pick['Score']}\n"
-            f"RVOL    : {pick['RVOL']}x | Move: {pick['Move3d']}\n"
+            f"Score   : {pick['Score']}"
+            f"{claude_block}\n"
+            f"RVOL    : {pick['RVOL']}x | RSI: {pick['RSI']} | Move: {pick['Move3d']}\n"
             f"Candle  : {pick['Candle']}\n"
             f"MACD    : {pick['MACD']}\n"
             f"OBV     : {pick['OBV']}\n"
@@ -1499,6 +1729,13 @@ def run_agent():
         send_telegram(msg)
         time.sleep(0.5)
 
+    # --- Claude skip list (if any) ---
+    skip_list = claude_output.get("skip", []) if claude_output else []
+    if skip_list:
+        skip_lines = "\n".join(f"  • {s['symbol']}: {s['reason']}" for s in skip_list)
+        send_telegram(f"⚠️ Claude flagged — lower priority:\n{skip_lines}")
+        time.sleep(0.3)
+
     # --- Momentum-only alerts (clearly labeled higher-risk) ---
     for pick in momentum_only[:3]:
         sym = pick['Symbol']
@@ -1518,7 +1755,7 @@ def run_agent():
             f"{'='*34}\n"
             f"Setup    : {pick['Setup']}\n"
             f"Score    : {pick['Score']} (quality bar: {SCORE_THRESHOLD})\n"
-            f"RVOL     : {pick['RVOL']}x | Move: {pick['Move3d']}\n"
+            f"RVOL     : {pick['RVOL']}x | RSI: {pick['RSI']} | Move: {pick['Move3d']}\n"
             f"Extension: {pick['Extension']}\n"
             f"Sector Mom: 1D {pick['SectorDay']} | 1W {pick['SectorWeek']}\n"
             f"{news_block}\n"
@@ -1559,9 +1796,10 @@ if __name__ == "__main__":
     print("🚀 US Professional Swing Trading Agent")
     print(f"Started at {datetime.utcnow().strftime('%H:%M UTC')}")
 
-    if is_market_hours():
-        run_agent()
-    else:
-        print("Outside market hours — skipping this run.")
+    run_agent()   # TEMP: bypassing market hours for Claude integration test
+    # if is_market_hours():
+    #     run_agent()
+    # else:
+    #     print("Outside market hours — skipping this run.")
 
     print("✅ Done.")
