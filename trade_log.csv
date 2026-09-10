@@ -385,3 +385,8 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-09,MSFT,XLK,EMA20 Pullback,27,493.09,487.31,507.54,9,4438,52,130,2.5,Slightly Positive,Yes,,,,,
 2026-09-09,ADM,XLP,EMA20 Pullback,26,86.13,78.22,105.9,37,3187,293,732,2.5,Positive,Yes,,,,,
 2026-09-09,CORT,XLK,EMA20 Pullback,26,115.07,108.25,132.12,39,4488,266,665,2.5,Slightly Negative,No,,,,,
+2026-09-10,CVX,XLE,Squeeze Breakout,34,213.81,202.16,242.94,21,4490,245,612,2.5,Slightly Positive,Yes,,,,,
+2026-09-10,CHYM,OTHER,Squeeze Breakout,30,34.55,31.52,42.12,99,3420,300,750,2.5,Positive,Yes,,,,,
+2026-09-10,CORT,XLK,EMA20 Pullback,28,115.7,108.25,134.32,38,4397,283,708,2.5,Slightly Negative,Yes,,,,,
+2026-09-10,HUM,XLV,EMA20 Pullback,28,400.02,382.11,444.79,11,4400,197,493,2.5,Positive,Yes,,,,,
+2026-09-10,ADM,XLP,ATH Breakout,27,86.55,78.22,107.38,36,3116,300,750,2.5,Positive,Yes,,,,,
