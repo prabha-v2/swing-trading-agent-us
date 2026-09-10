@@ -1152,7 +1152,7 @@ sector_map = {
     "PLTR":"XLK",  "MSFT":"XLK",  "AMZN":"XLK",  "NOW":"XLK",
     "CRM":"XLK",   "ADBE":"XLK",  "INTU":"XLK",  "APP":"XLK",
     "CRWD":"XLK",  "PANW":"XLK",  "ZS":"XLK",    "FTNT":"XLK",
-    "OKTA":"XLK",  "S":"XLK",     "CYBR":"XLK",  "SNOW":"XLK",
+    "OKTA":"XLK",  "S":"XLK",     "SNOW":"XLK",
     "DDOG":"XLK",  "NET":"XLK",   "ORCL":"XLK",  "MDB":"XLK",
     "GTLB":"XLK",  "ANET":"XLK",  "DELL":"XLK",  "HPE":"XLK",
     "AXON":"XLK",  "CORT":"XLK",  "IONQ":"XLK",  "RGTI":"XLK",
@@ -1796,10 +1796,9 @@ if __name__ == "__main__":
     print("🚀 US Professional Swing Trading Agent")
     print(f"Started at {datetime.utcnow().strftime('%H:%M UTC')}")
 
-    run_agent()   # TEMP: bypassing market hours for Claude integration test
-    # if is_market_hours():
-    #     run_agent()
-    # else:
-    #     print("Outside market hours — skipping this run.")
+    if is_market_hours():
+        run_agent()
+    else:
+        print("Outside market hours — skipping this run.")
 
     print("✅ Done.")

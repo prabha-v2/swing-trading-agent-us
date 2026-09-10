@@ -59,8 +59,9 @@ jobs:
 
       - name: Run trading agent
         env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          CHAT_ID: ${{ secrets.CHAT_ID }}
+          TELEGRAM_TOKEN:    ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT_ID:           ${{ secrets.CHAT_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python swing_trading_agent_us.py
 
       # Commit trade_log.csv (and updated positions.csv if changed) back to repo
