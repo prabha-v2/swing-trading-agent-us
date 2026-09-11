@@ -395,3 +395,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-11,CRM,XLK,Trend Continuation,26,249.07,241.75,267.37,18,4483,132,329,2.49,Neutral,Yes,,,,,
 2026-09-11,ADM,XLP,ATH Breakout,25,87.62,79.45,108.05,36,3154,294,735,2.5,Positive,Yes,,,,,
 2026-09-11,XOM,XLE,EMA20 Pullback,25,165.79,155.58,191.31,27,4476,276,689,2.5,Positive,No,,,,,
+2026-09-11,MSFT,XLK,EMA20 Pullback,25,495.18,486.0,518.13,9,4457,83,207,2.49,Positive,No,,,,,
