@@ -399,3 +399,6 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-14,CVX,XLE,EMA20 Pullback,27,213.54,203.84,237.81,21,4484,204,510,2.5,Slightly Negative,No,,,,,
 2026-09-14,XOM,XLE,EMA20 Pullback,27,165.58,158.74,182.68,27,4471,185,462,2.5,Slightly Positive,No,,,,,
 2026-09-14,MSFT,XLK,EMA20 Pullback,28,509.23,486.0,567.29,8,4074,186,465,2.5,Slightly Negative,Yes,,,,,
+2026-09-14,BWIN,OTHER,ATH Breakout,31,32.06,28.45,41.08,83,2661,300,749,2.5,Slightly Negative,No,,,,,
+2026-09-14,BRK-B,XLF,Squeeze Breakout,30,515.55,500.7,552.67,8,4124,119,297,2.5,Neutral,Yes,,,,,
+2026-09-14,GRDN,OTHER,ATH Breakout,26,46.76,41.83,59.06,60,2805,295,738,2.5,Positive,Yes,,,,,
