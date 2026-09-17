@@ -414,3 +414,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-17,PLTR,XLK,EMA20 Pullback,29,177.0,164.55,208.12,24,4248,299,747,2.5,Slightly Positive,Yes,,,,,
 2026-09-17,ADM,XLP,EMA20 Pullback,24,87.45,83.01,98.55,51,4460,226,566,2.5,Slightly Positive,Yes,,,,,
 2026-09-17,BDX,XLV,EMA20 Pullback,24,183.01,175.2,202.53,24,4392,187,469,2.51,Neutral,Yes,,,,,
+2026-09-17,MSFT,XLK,EMA20 Pullback,27,496.89,486.0,524.13,9,4472,98,245,2.5,Neutral,Yes,,,,,
