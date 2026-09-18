@@ -419,3 +419,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-18,APA,XLE,EMA20 Pullback,24,45.16,42.73,51.23,99,4471,241,601,2.49,Slightly Negative,No,,,,,
 2026-09-18,FTNT,XLK,EMA20 Pullback,24,167.65,152.0,206.77,19,3185,297,743,2.5,Positive,No,,,,,
 2026-09-18,A,XLV,EMA20 Pullback,27,155.74,143.5,186.37,24,3738,294,735,2.5,Positive,No,,,,,
+2026-09-18,MSFT,XLK,EMA20 Pullback,24,495.13,486.0,517.96,9,4456,82,205,2.5,Neutral,Yes,,,,,
