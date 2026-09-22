@@ -432,3 +432,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-22,MPC,XLE,EMA20 Pullback,26,399.53,386.95,430.97,11,4395,138,346,2.51,Slightly Positive,No,,,,,
 2026-09-22,NVDA,SMH,EMA20 Pullback,31,229.91,212.25,274.06,16,3679,283,706,2.49,Neutral,No,,,,,
 2026-09-22,TSM,SMH,EMA20 Pullback,26,448.39,418.49,523.14,10,4484,299,748,2.5,Slightly Positive,No,,,,,
+2026-09-22,GLBE,OTHER,Squeeze Breakout,30,42.26,37.84,53.31,67,2831,296,740,2.5,Positive,Yes,,,,,
+2026-09-22,A,XLV,ATH Breakout,29,166.54,153.4,199.41,22,3664,289,723,2.5,Slightly Positive,No,,,,,
+2026-09-22,ABBV,XBI,EMA20 Pullback,28,265.2,248.93,305.86,16,4243,260,651,2.5,Positive,No,,,,,
+2026-09-22,WPM,XLB,EMA20 Pullback,26,154.24,144.06,179.69,29,4473,295,738,2.5,Positive,Yes,,,,,
