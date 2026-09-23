@@ -440,3 +440,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-23,NVDA,SMH,EMA20 Pullback,25,224.55,208.93,263.6,19,4266,297,742,2.5,Slightly Positive,No,,,,,
 2026-09-23,MSFT,XLK,EMA20 Pullback,23,499.14,486.0,531.99,9,4492,118,296,2.51,Positive,No,,,,,
 2026-09-23,BDX,XLV,EMA20 Pullback,24,182.91,175.2,202.2,24,4390,185,463,2.5,Neutral,No,,,,,
+2026-09-23,PLTR,XLK,Trend Continuation,30,191.03,168.3,247.85,13,2483,295,739,2.51,Slightly Positive,No,,,,,
+2026-09-23,TEAM,OTHER,ATH Breakout,27,195.07,174.21,247.24,14,2731,292,730,2.5,Positive,Yes,,,,,
+2026-09-23,WOR,OTHER,Trend Continuation,25,61.17,54.26,78.44,43,2630,297,743,2.5,Positive,Yes,,,,,
+2026-09-23,A,XLV,ATH Breakout,25,164.86,151.41,198.49,22,3627,296,740,2.5,Positive,No,,,,,
