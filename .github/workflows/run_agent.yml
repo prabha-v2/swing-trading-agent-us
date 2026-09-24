@@ -1,22 +1,13 @@
 name: Swing Trading Agent
 
 on:
-  # -------------------------------------------------------
-  # US Market hours schedule (all times in UTC)
-  # Daylight Saving active (Mar–Nov):
-  #   US market = 13:30–20:00 UTC = 7:00 PM–1:30 AM IST
-  #   We start 1hr early at 12:30 UTC = 6:00 PM IST
-  #   We stop at market close 20:00 UTC = 1:30 AM IST
-  #
-  # Every 30 mins from 12:30 UTC to 20:00 UTC, Mon–Fri
-  # -------------------------------------------------------
-  schedule:
-    - cron: '30 12 * * 1-5'   # 6:00 PM IST — 1hr before US open
-    - cron: '30 14 * * 1-5'   # 8:00 PM IST
-    - cron: '30 16 * * 1-5'   # 10:00 PM IST
-    - cron: '30 18 * * 1-5'   # 12:00 AM IST
-    - cron: '00 21 * * 1-5'   # 2:30 AM IST — post-close EOD scan (most reliable)
-  workflow_dispatch:   # keep manual trigger for testing
+  # Triggered by cron-job.org (POST .../actions/workflows/run_agent.yml/dispatches),
+  # not GitHub's `schedule:`, which started runs 2-5 hours late. Mon-Fri, New York time
+  # (so US daylight-saving changes are automatic):
+  #   09:45, 11:45, 13:45  intraday scans      (IST ~7:15 PM, 9:15 PM, 11:15 PM during US DST)
+  #   15:30                near-close scan     (IST ~1:00 AM) — main Momentum Dip entry scan
+  #   16:15                after-close scan    (IST ~1:45 AM) — exits/SELL alerts at the close
+  workflow_dispatch:   # also usable manually from the Actions tab
 
 # Allow the workflow to push trade_log.csv back to the repo
 permissions:
