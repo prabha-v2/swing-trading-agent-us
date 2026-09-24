@@ -390,7 +390,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-10,CORT,XLK,EMA20 Pullback,28,115.7,108.25,134.32,38,4397,283,708,2.5,Slightly Negative,Yes,,,,,
 2026-09-10,HUM,XLV,EMA20 Pullback,28,400.02,382.11,444.79,11,4400,197,493,2.5,Positive,Yes,STOPPED,2026-09-17,382.11,-197.01,-4.48
 2026-09-10,ADM,XLP,ATH Breakout,27,86.55,78.22,107.38,36,3116,300,750,2.5,Positive,Yes,,,,,
-2026-09-11,EXPD,XLI,EMA20 Pullback,28,192.0,184.29,211.28,23,4416,177,443,2.5,Slightly Positive,Yes,,,,,
+2026-09-11,EXPD,XLI,EMA20 Pullback,28,192.0,184.29,211.28,23,4416,177,443,2.5,Slightly Positive,Yes,STOPPED,2026-09-24,184.29,-177.33,-4.02
 2026-09-11,CVX,XLE,EMA20 Pullback,27,213.71,201.45,244.37,21,4488,258,644,2.5,Slightly Positive,No,STOPPED,2026-09-22,201.45,-257.46,-5.74
 2026-09-11,CRM,XLK,Trend Continuation,26,249.07,241.75,267.37,18,4483,132,329,2.49,Neutral,Yes,STOPPED,2026-09-17,241.75,-131.76,-2.94
 2026-09-11,ADM,XLP,ATH Breakout,25,87.62,79.45,108.05,36,3154,294,735,2.5,Positive,Yes,,,,,
@@ -401,7 +401,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-14,MSFT,XLK,EMA20 Pullback,28,509.23,486.0,567.29,8,4074,186,465,2.5,Slightly Negative,Yes,,,,,
 2026-09-14,BWIN,OTHER,ATH Breakout,31,32.06,28.45,41.08,83,2661,300,749,2.5,Slightly Negative,No,,,,,
 2026-09-14,BRK-B,XLF,Squeeze Breakout,30,515.55,500.7,552.67,8,4124,119,297,2.5,Neutral,Yes,,,,,
-2026-09-14,GRDN,OTHER,ATH Breakout,26,46.76,41.83,59.06,60,2805,295,738,2.5,Positive,Yes,,,,,
+2026-09-14,GRDN,OTHER,ATH Breakout,26,46.76,41.83,59.06,60,2805,295,738,2.5,Positive,Yes,STOPPED,2026-09-24,41.83,-295.8,-10.54
 2026-09-14,TEAM,OTHER,ATH Breakout,27,192.77,174.21,239.17,16,3084,297,742,2.5,Positive,Yes,,,,,
 2026-09-14,BDX,XLV,EMA20 Pullback,27,182.91,175.2,202.19,24,4390,185,463,2.5,Positive,Yes,,,,,
 2026-09-16,MPC,XLE,ATH Breakout,25,417.76,379.65,513.02,7,2924,267,667,2.5,Slightly Positive,Yes,STOPPED,2026-09-23,379.65,-266.77,-9.12
@@ -461,3 +461,5 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-24,WPM,XLB,Momentum Dip,82,144.01,130.77,148.07,22,3168,291,89,0.31,Positive,N/A,,,,,
 2026-09-24,GPN,XLF,Momentum Dip,82,84.0,77.4,84.75,45,3780,297,34,0.11,Positive,N/A,,,,,
 2026-09-24,EXPD,XLI,Momentum Dip,81,184.67,175.05,188.97,24,4432,231,103,0.45,Positive,N/A,,,,,
+2026-09-24,AIZ,XLF,Momentum Dip,81,263.28,249.49,274.73,17,4476,235,195,0.83,Neutral,N/A,,,,,
+2026-09-24,BAC,XLF,Momentum Dip,77,55.94,52.54,56.77,80,4475,272,66,0.24,Slightly Positive,N/A,,,,,
