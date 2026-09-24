@@ -456,3 +456,8 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-24,ELV,XLV,Momentum Dip,87,395.61,367.78,405.74,10,3956,278,101,0.36,Positive,N/A,,,,,
 2026-09-24,IT,XLK,Momentum Dip,83,178.15,155.99,182.71,13,2316,288,59,0.2,Neutral,N/A,,,,,
 2026-09-24,MNST,XLP,Momentum Dip,83,42.88,40.77,44.0,104,4460,219,117,0.53,Positive,N/A,,,,,
+2026-09-24,DELL,XLK,Momentum Dip,99,533.66,455.77,555.16,3,1601,234,64,0.27,Neutral,N/A,,,,,
+2026-09-24,EXPE,XLY,Momentum Dip,89,259.71,228.65,272.73,9,2337,279,117,0.42,Neutral,N/A,,,,,
+2026-09-24,WPM,XLB,Momentum Dip,82,144.01,130.77,148.07,22,3168,291,89,0.31,Positive,N/A,,,,,
+2026-09-24,GPN,XLF,Momentum Dip,82,84.0,77.4,84.75,45,3780,297,34,0.11,Positive,N/A,,,,,
+2026-09-24,EXPD,XLI,Momentum Dip,81,184.67,175.05,188.97,24,4432,231,103,0.45,Positive,N/A,,,,,
