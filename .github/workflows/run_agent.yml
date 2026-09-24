@@ -22,14 +22,13 @@ on:
 permissions:
   contents: write
 
-# Safety net: if a run ever takes long enough to overlap the next cron trigger,
-# cancel the older one instead of letting two scans (and two trade-log commits)
-# run concurrently. The main fix for the overlap is removing the script's
-# internal 30-min self-loop (see swing_trading_agent_us.py __main__), but this
-# is cheap insurance on top of that.
+# Runs are triggered at exact times by an external scheduler (cron-job.org calling
+# workflow_dispatch) because GitHub's own schedule starts runs 2-5 hours late.
+# If one run overlaps the next, queue it rather than cancel the one in progress
+# (a cancelled run loses its trade-log update).
 concurrency:
   group: swing-agent
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   run-agent:
@@ -71,6 +70,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add trade_log.csv positions.csv 2>/dev/null || true
           git diff --staged --quiet || git commit -m "📊 Trade log $(date +'%Y-%m-%d %H:%M UTC')"
-          git push
+          # Pull first: the user edits positions.csv from GitHub, and a commit made while
+          # this run was scanning would otherwise reject the push and lose this run's log.
+          for i in 1 2 3; do git pull --rebase -q && git push && break; sleep 5; done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
