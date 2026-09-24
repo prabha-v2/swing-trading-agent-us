@@ -463,3 +463,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-24,EXPD,XLI,Momentum Dip,81,184.67,175.05,188.97,24,4432,231,103,0.45,Positive,N/A,,,,,
 2026-09-24,AIZ,XLF,Momentum Dip,81,263.28,249.49,274.73,17,4476,235,195,0.83,Neutral,N/A,,,,,
 2026-09-24,BAC,XLF,Momentum Dip,77,55.94,52.54,56.77,80,4475,272,66,0.24,Slightly Positive,N/A,,,,,
+2026-09-24,GL,XLF,Momentum Dip,72,167.32,158.84,170.78,26,4350,220,90,0.41,Positive,N/A,,,,,
