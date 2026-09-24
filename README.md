@@ -1,8 +1,23 @@
 # Swing Trading Agent — Deployment Guide
 
+## Strategy — Momentum Dip
+The agent buys short, sharp pullbacks in the market's strongest stocks:
+
+- **Leader**: 6-month momentum in the top 30% of the scanned universe
+- **Uptrend**: close above the 200-day SMA
+- **Dip**: 2-day RSI below 10
+- **Stop**: entry − 2.5 × ATR(14)
+- **Exit**: first close above the 5-day SMA, or after 10 trading days. The agent sends a Telegram **SELL** alert when an exit fires.
+
+Up to 5 new picks per scan, strongest momentum first, max 2 per sector. Stocks with earnings within 12 days are skipped. Claude adds a conviction note and cautions to each pick but doesn't remove any.
+
+Backtest (2018–2026, `python backtest.py`): about +0.58% per trade over about 3.4 days, 68% winners, ahead of a random-stock baseline in 8 of 9 years. The universe is today's index members, so results are somewhat optimistic; subtract about 0.1% per trade for costs.
+
+The previous multi-indicator score was retired after testing showed its picks did no better than random stocks.
+
 ## Files in this repo
 - `swing_trading_agent_us.py` — main trading agent
-- `backtest.py` — backtesting module
+- `backtest.py` — Momentum Dip backtest with a random-stock baseline
 - `requirements.txt` — Python dependencies
 - `.github/workflows/run_agent.yml` — runs the agent on a schedule via GitHub Actions (5 fixed times/day during US market hours — see the cron entries in the workflow file; each run scans once and exits)
 

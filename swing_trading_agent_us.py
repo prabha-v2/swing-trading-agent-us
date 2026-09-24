@@ -15,19 +15,23 @@ from pathlib import Path
 
 ACCOUNT_SIZE      = 30000
 RISK_PER_TRADE    = 0.01
-RR_RATIO          = 2.5
-MAX_ATR_STOP      = 3.0
 MAX_POSITION_PCT  = 0.15          # max 15% of account per trade
-SCORE_THRESHOLD   = 22
 TOP_PICKS         = 5
 MAX_PER_SECTOR    = 2
+
+# Momentum Dip strategy (see check_stock / backtest.py)
+MOM_TOP_PCT       = 0.30          # only stocks in the top 30% of the universe by 6-month momentum
+DIP_RSI2_MAX      = 10            # 2-day RSI below this = short-term dip
+DIP_STOP_ATR      = 2.5           # stop = entry - 2.5 x ATR(14)
+DIP_MAX_HOLD      = 10            # exit after this many trading days if the 5-day-SMA exit hasn't fired
 
 # Feature flags
 EXPAND_UNIVERSE   = True          # Fetch S&P 500 dynamically (adds ~350 extra stocks)
 NEWS_SENTIMENT    = True          # Score news headlines per pick
-CHECK_15MIN       = True          # Confirm setup on 15-min chart before alerting
 PORTFOLIO_FILE    = "positions.csv"
 TRADE_LOG_FILE    = "trade_log.csv"
+MAX_HOLD_DAYS     = 30            # close a signal as EXPIRED if neither stop nor target hit within this many calendar days
+MIN_PERF_SAMPLE   = 8             # min unique closed signals before a setup/sector win rate is shown to Claude
 
 # Portfolio risk limits
 MAX_PORTFOLIO_HEAT  = 0.60        # max 60% of account deployed at once
@@ -244,7 +248,7 @@ def get_sector_rotation():
     Computes 1-day, 1-week and 1-month returns per sector ETF (sector momentum),
     plus a volume-trend flag used to mark "hot" sectors. Also piggybacks the
     long-term EMA200 "sector strength" check onto the same download (strength_cache
-    below), so sector_is_strong() no longer needs a separate fresh download per stock.
+    below). Sector data is context for alerts/Claude only — it doesn't filter picks.
 
     Returns a 3-tuple:
       hot_sectors    - set of ETF tickers flagged as currently hot (rotation bonus)
@@ -316,40 +320,6 @@ def get_sector_rotation():
 # CANDLE QUALITY
 # =========================================
 
-def candle_quality_score(df):
-    score = 0
-    try:
-        c1 = df.iloc[-1]
-        c2 = df.iloc[-2]
-        c3 = df.iloc[-3]
-        atr         = float(df['ATR'].iloc[-1]) if 'ATR' in df.columns else float(c1['High'] - c1['Low'])
-        today_range = float(c1['High'] - c1['Low'])
-        today_body  = abs(float(c1['Close'] - c1['Open']))
-        today_upper = float(c1['High']) - max(float(c1['Close']), float(c1['Open']))
-        close_pos   = ((float(c1['Close']) - float(c1['Low'])) / today_range) if today_range > 0 else 0.5
-
-        if close_pos > 0.70:                                      score += 2
-        elif close_pos > 0.50:                                    score += 1
-        elif close_pos < 0.30:                                    score -= 2
-
-        if today_range > 0 and today_upper / today_range > 0.40:  score -= 1
-        if today_body > atr * 0.5:                                score += 1
-        if float(c1['Open']) > float(c2['Close']) * 1.005:        score += 1
-        if float(c1['Close']) > float(c2['High']):                score += 1
-
-        bull = sum([
-            float(c1['Close']) > float(c1['Open']),
-            float(c2['Close']) > float(c2['Open']),
-            float(c3['Close']) > float(c3['Open']),
-        ])
-        if bull == 3:    score += 1
-        elif bull <= 1:  score -= 1
-
-        if today_range > 0 and today_body / today_range < 0.10:   score -= 1  # doji
-    except Exception:
-        pass
-    return score
-
 # =========================================
 # FUNDAMENTAL FILTER
 # =========================================
@@ -398,22 +368,6 @@ def market_is_bullish():
     e200   = float(latest['EMA200'])
     print(f"S&P: {close:.0f} | EMA50: {e50:.0f} | EMA200: {e200:.0f}")
     return close > e50 and close > e200
-
-# =========================================
-# SECTOR STRENGTH (long-term)
-# =========================================
-
-def sector_is_strong(etf_symbol):
-    try:
-        df = yf.download(etf_symbol, period="1y", interval="1d", progress=False)
-        df = df.dropna()
-        df.columns = df.columns.get_level_values(0)
-        if df.empty:
-            return True
-        df['EMA200'] = ta.trend.ema_indicator(df['Close'], window=200)
-        return float(df['Close'].iloc[-1]) > float(df['EMA200'].iloc[-1])
-    except Exception:
-        return True
 
 # =========================================
 # EARNINGS FILTER
@@ -522,62 +476,6 @@ def get_news_sentiment(symbol):
 # 15-MIN CONFIRMATION
 # =========================================
 
-def passes_15min_check(symbol, daily_entry):
-    """
-    Confirm the daily setup is still valid on the 15-min chart.
-    Checks: price proximity, MACD direction, RSI range, volume.
-    Returns (passed: bool, reason: str).
-    Fail-open: returns (True, 'Data unavailable') on any error.
-    """
-    try:
-        df = yf.download(symbol, period="5d", interval="15m", progress=False)
-        if df is None or df.empty or len(df) < 30:
-            return True, "Data unavailable"
-
-        df = df.dropna()
-        df.columns = df.columns.get_level_values(0)
-        if len(df) < 30:
-            return True, "Insufficient bars"
-
-        current_price = float(df['Close'].iloc[-1])
-
-        # 1. Price proximity: must be within 3% of the daily entry zone
-        drift = (current_price - daily_entry) / daily_entry
-        if drift > 0.03:
-            return False, f"Price ran +{drift:.1%} above entry — chasing risk"
-        if drift < -0.04:
-            return False, f"Price dropped {drift:.1%} below entry — setup breaking"
-
-        # 2. MACD on 15-min must be bullish (above signal line)
-        macd_line   = ta.trend.macd(df['Close'], window_slow=26, window_fast=12)
-        macd_signal = ta.trend.macd_signal(df['Close'], window_slow=26, window_fast=12, window_sign=9)
-        macd_ok     = float(macd_line.iloc[-1]) > float(macd_signal.iloc[-1])
-
-        # 3. RSI on 15-min: momentum zone 45-78
-        rsi    = ta.momentum.rsi(df['Close'], window=14)
-        rsi_v  = float(rsi.iloc[-1])
-        rsi_ok = 45 < rsi_v < 78
-
-        # 4. Recent volume above its 20-bar average on 15-min
-        avg_vol = float(df['Volume'].iloc[-20:].mean())
-        cur_vol = float(df['Volume'].iloc[-3:].mean())   # last 45 min
-        vol_ok  = cur_vol >= avg_vol * 0.8               # at least 80% of avg
-
-        fails = []
-        if not macd_ok:  fails.append(f"15m MACD bearish")
-        if not rsi_ok:   fails.append(f"15m RSI={rsi_v:.0f}")
-        if not vol_ok:   fails.append(f"15m vol thin ({cur_vol/avg_vol:.0%} avg)")
-
-        if len(fails) >= 2:
-            return False, " | ".join(fails)
-        elif fails:
-            return True, f"⚠️ Minor: {fails[0]}"
-        else:
-            return True, f"✅ RSI={rsi_v:.0f}, MACD bullish, vol OK"
-
-    except Exception as e:
-        return True, f"Check skipped ({e})"
-
 # =========================================
 # PORTFOLIO RISK
 # =========================================
@@ -673,14 +571,31 @@ TRADE_LOG_FIELDS = [
     'outcome', 'outcome_date', 'exit_price', 'pnl_usd', 'pnl_pct'
 ]
 
-def log_picks(picks, confirmed_map, sentiment_map):
-    """Append today's picks to trade_log.csv (won't duplicate same symbol+date)."""
+def open_dip_symbols():
+    """Symbols with a Momentum Dip signal still open in trade_log.csv (already alerted)."""
+    log_file = Path(TRADE_LOG_FILE)
+    if not log_file.exists():
+        return set()
+    try:
+        with open(log_file, newline='') as f:
+            return {r.get('symbol', '') for r in csv.DictReader(f)
+                    if not r.get('outcome', '').strip() and r.get('setup') == 'Momentum Dip'}
+    except Exception:
+        return set()
+
+def log_picks(picks, sentiment_map):
+    """Append today's picks to trade_log.csv.
+
+    Skips a symbol that already has an open Momentum Dip signal — re-logging it
+    every run made one stop-out count as many losses in the win-rate stats.
+    """
     log_file   = Path(TRADE_LOG_FILE)
     today_str  = datetime.now().strftime('%Y-%m-%d')
     file_exists = log_file.exists()
 
     # Load existing entries to avoid duplicates
-    existing = set()
+    existing  = set()
+    open_syms = open_dip_symbols()
     if file_exists:
         try:
             with open(log_file, newline='') as f:
@@ -689,6 +604,8 @@ def log_picks(picks, confirmed_map, sentiment_map):
         except Exception:
             pass
 
+    logged = 0
+
     with open(log_file, 'a', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=TRADE_LOG_FIELDS)
         if not file_exists:
@@ -696,15 +613,15 @@ def log_picks(picks, confirmed_map, sentiment_map):
 
         for pick in picks:
             sym = pick['Symbol']
-            if (today_str, sym) in existing:
-                continue  # already logged today
+            if (today_str, sym) in existing or sym in open_syms:
+                continue  # already logged today, or an earlier signal is still open
             rr = round(pick['Reward$'] / pick['Risk$'], 2) if pick['Risk$'] > 0 else 0
             writer.writerow({
                 'date':           today_str,
                 'symbol':         sym,
                 'sector':         pick['Sector'],
                 'setup':          pick['Setup'],
-                'score':          pick['Score'],
+                'score':          pick['MomPct'],   # 6-month momentum percentile (0-100)
                 'entry':          pick['Entry'],
                 'stop':           pick['Stop'],
                 'target':         pick['Target'],
@@ -714,21 +631,29 @@ def log_picks(picks, confirmed_map, sentiment_map):
                 'reward_usd':     int(pick['Reward$']),
                 'rr':             rr,
                 'news_sentiment': sentiment_map.get(sym, ('', 'N/A', []))[1],
-                'confirmed_15m':  'Yes' if confirmed_map.get(sym, (True,''))[0] else 'No',
+                'confirmed_15m':  'N/A',
                 'outcome':        '',
                 'outcome_date':   '',
                 'exit_price':     '',
                 'pnl_usd':        '',
                 'pnl_pct':        '',
             })
+            logged += 1
 
-    print(f"📋 Logged {len(picks)} picks to {TRADE_LOG_FILE}")
+    print(f"📋 Logged {logged} new picks to {TRADE_LOG_FILE} ({len(picks) - logged} already open/logged)")
 
 def update_trade_outcomes():
     """
-    For every open trade in trade_log.csv (outcome == ''),
-    fetch the current price and check if target or stop has been hit.
-    Fills in outcome, exit_price, pnl_usd, pnl_pct, outcome_date.
+    For every open trade in trade_log.csv (outcome == ''), walk the daily bars
+    after the signal date and record the exit. Fills in outcome, exit_price,
+    pnl_usd, pnl_pct, outcome_date, and sends a Telegram SELL alert for
+    Momentum Dip exits so the user knows to close the position.
+
+    Momentum Dip: STOPPED if the low hits the stop; otherwise EXITED at the first
+    close above the 5-day SMA, or at the close of trading day DIP_MAX_HOLD.
+    Older setups: first stop or target hit; EXPIRED at the latest close after
+    MAX_HOLD_DAYS. (Runs intraday, so today's bar is partial — an exit on it
+    uses the current price.)
     """
     log_file = Path(TRADE_LOG_FILE)
     if not log_file.exists():
@@ -736,7 +661,7 @@ def update_trade_outcomes():
 
     rows     = []
     updated  = 0
-    today_str = datetime.now().strftime('%Y-%m-%d')
+    today    = datetime.now()
 
     try:
         with open(log_file, newline='') as f:
@@ -745,53 +670,110 @@ def update_trade_outcomes():
         print(f"⚠️ Could not read trade log: {e}")
         return
 
-    for row in rows:
-        if row.get('outcome', '').strip():
-            continue   # already closed
+    held_alerts  = []   # exits for stocks the user holds (listed in positions.csv)
+    other_alerts = []   # exits for alerted signals the user didn't take
+    held         = get_portfolio_positions()
 
-        sym    = row.get('symbol', '')
-        entry  = float(row.get('entry', 0) or 0)
-        stop   = float(row.get('stop', 0) or 0)
-        target = float(row.get('target', 0) or 0)
-        size   = int(float(row.get('size', 0) or 0))
-
-        if not sym or entry <= 0:
-            continue
-
+    # One download per symbol, covering its oldest open signal
+    open_rows  = [r for r in rows if not r.get('outcome', '').strip() and r.get('symbol')]
+    earliest   = {}
+    for r in open_rows:
+        d = r.get('date', '')
+        if d and (r['symbol'] not in earliest or d < earliest[r['symbol']]):
+            earliest[r['symbol']] = d
+    bars = {}
+    for sym, d in earliest.items():
         try:
-            df = yf.download(sym, period="5d", interval="1d", progress=False)
+            # extra history so the 5-day SMA is defined from the first bar after the signal
+            start = (pd.Timestamp(d) - timedelta(days=15)).strftime('%Y-%m-%d')
+            df = yf.download(sym, start=start, interval="1d", progress=False)
             if df is None or df.empty:
                 continue
             df = df.dropna()
             df.columns = df.columns.get_level_values(0)
+            bars[sym] = df
+        except Exception as e:
+            print(f"  ⚠️ {sym} outcome check failed: {e}")
 
-            # Check high/low of last bar to see if stop or target was reached
-            last   = df.iloc[-1]
-            hi     = float(last['High'])
-            lo     = float(last['Low'])
-            close  = float(last['Close'])
+    for row in open_rows:
+        sym    = row['symbol']
+        entry  = float(row.get('entry', 0) or 0)
+        stop   = float(row.get('stop', 0) or 0)
+        target = float(row.get('target', 0) or 0)
+        size   = int(float(row.get('size', 0) or 0))
+        df     = bars.get(sym)
+
+        if entry <= 0 or df is None:
+            continue
+
+        try:
+            sig_date = pd.Timestamp(row['date'])
+            # Bars after the signal day only — the signal-day bar includes prices from before the alert
+            after = df[df.index.normalize() > sig_date]
 
             outcome    = ''
-            exit_price = close
+            exit_price = None
+            exit_date  = None
+            is_dip     = row.get('setup') == 'Momentum Dip'
+            sma5       = df['Close'].rolling(5).mean()
+            for n_bar, (ts, bar) in enumerate(after.iterrows(), 1):
+                if is_dip:
+                    o, lo, cl = float(bar['Open']), float(bar['Low']), float(bar['Close'])
+                    if lo <= stop:
+                        outcome, exit_price = 'STOPPED', min(o, stop)
+                    elif cl > float(sma5.loc[ts]) or n_bar >= DIP_MAX_HOLD:
+                        outcome, exit_price = 'EXITED', cl
+                    if outcome:
+                        exit_date = ts
+                        break
+                    continue
+                o, hi, lo = float(bar['Open']), float(bar['High']), float(bar['Low'])
+                # Stop checked first (conservative when both are inside one bar); gaps fill at the open
+                if lo <= stop:
+                    outcome, exit_price = 'STOPPED', min(o, stop)
+                elif hi >= target:
+                    outcome, exit_price = 'TARGET HIT', max(o, target)
+                if outcome:
+                    exit_date = ts
+                    break
 
-            if lo <= stop:
-                outcome    = 'STOPPED'
-                exit_price = stop
-            elif hi >= target:
-                outcome    = 'TARGET HIT'
-                exit_price = target
+            close = float(df['Close'].iloc[-1])
+            if not outcome and not is_dip and (today - sig_date).days >= MAX_HOLD_DAYS and not after.empty:
+                outcome, exit_price, exit_date = 'EXPIRED', close, after.index[-1]
 
             if outcome:
+                exit_price = round(exit_price, 2)
                 pnl_usd = round((exit_price - entry) * size, 2)
                 pnl_pct = round((exit_price - entry) / entry * 100, 2)
                 row['outcome']      = outcome
-                row['outcome_date'] = today_str
+                row['outcome_date'] = exit_date.strftime('%Y-%m-%d')
                 row['exit_price']   = exit_price
                 row['pnl_usd']      = pnl_usd
                 row['pnl_pct']      = pnl_pct
                 updated += 1
-                emoji = "✅" if outcome == 'TARGET HIT' else "❌"
+                emoji = {"TARGET HIT": "✅", "STOPPED": "❌"}.get(outcome, "✅" if pnl_usd > 0 else "⌛")
                 print(f"  {emoji} {sym}: {outcome} | P&L ${pnl_usd:+.0f} ({pnl_pct:+.1f}%)")
+                if is_dip:
+                    if outcome == 'STOPPED':
+                        why = "stop hit"
+                    elif exit_price > float(sma5.loc[exit_date]):
+                        why = "closed above 5-day SMA"
+                    else:
+                        why = f"{DIP_MAX_HOLD}-day time exit"
+                    pos = held.get(sym.upper())
+                    if pos:
+                        my_pnl = (exit_price - pos['entry']) * pos['shares']
+                        my_pct = (exit_price / pos['entry'] - 1) * 100 if pos['entry'] > 0 else 0
+                        held_alerts.append(
+                            f"📌 {sym} — SELL NOW ({why})\n"
+                            f"  You hold {pos['shares']} @ ${pos['entry']:.2f} → ${exit_price:.2f} | "
+                            f"${my_pnl:+,.0f} ({my_pct:+.1f}%)\n"
+                            f"  After selling, remove {sym} from positions.csv"
+                        )
+                    else:
+                        other_alerts.append(
+                            f"{emoji} {sym} ({why}) — alert {row['date']} ${entry:.2f} → ${exit_price:.2f} | {pnl_pct:+.1f}%"
+                        )
             else:
                 # Still open — update unrealized P&L
                 unreal = round((close - entry) * size, 2)
@@ -813,8 +795,16 @@ def update_trade_outcomes():
         except Exception as e:
             print(f"⚠️ Could not write trade log: {e}")
 
+    if held_alerts:
+        send_telegram("🔔 SELL — YOUR POSITIONS:\n" + "\n".join(held_alerts))
+    if other_alerts:
+        send_telegram(
+            "ℹ️ Momentum Dip signals closed (not in positions.csv — ignore unless you hold them):\n"
+            + "\n".join(other_alerts)
+        )
+
 def print_trade_stats():
-    """Print a simple win-rate / P&L summary from closed trades."""
+    """Print win-rate / P&L for closed Momentum Dip signals (a win = closed at a profit)."""
     log_file = Path(TRADE_LOG_FILE)
     if not log_file.exists():
         return
@@ -825,311 +815,118 @@ def print_trade_stats():
     except Exception:
         return
 
-    closed = [r for r in rows if r.get('outcome', '').strip() in ('TARGET HIT', 'STOPPED')]
+    closed = [r for r in rows
+              if r.get('setup') == 'Momentum Dip' and r.get('outcome', '').strip() and r.get('pnl_pct')]
     if not closed:
+        print("\n📈 Momentum Dip history: no closed signals yet")
         return
 
-    wins  = [r for r in closed if r['outcome'] == 'TARGET HIT']
-    total = len(closed)
-    win_r = len(wins) / total * 100
-
-    try:
-        pnls  = [float(r['pnl_usd']) for r in closed if r.get('pnl_usd')]
-        net   = sum(pnls)
-        avg   = net / len(pnls) if pnls else 0
-        print(f"\n📈 Trade History: {total} closed | Win rate: {win_r:.0f}% | Net P&L: ${net:+,.0f} | Avg: ${avg:+.0f}")
-    except Exception:
-        print(f"\n📈 Trade History: {total} closed | Win rate: {win_r:.0f}%")
+    pnl_pct = [float(r['pnl_pct']) for r in closed]
+    pnl_usd = [float(r['pnl_usd']) for r in closed if r.get('pnl_usd')]
+    win_r   = sum(p > 0 for p in pnl_pct) / len(pnl_pct) * 100
+    print(
+        f"\n📈 Momentum Dip history: {len(closed)} closed | Win rate: {win_r:.0f}% | "
+        f"Avg: {sum(pnl_pct) / len(pnl_pct):+.2f}%/trade | Net P&L: ${sum(pnl_usd):+,.0f}"
+    )
 
 # =========================================
 # MAIN TECHNICAL SCANNER
 # =========================================
 
-def check_stock(symbol, df, spy_df, hot_sectors, sector_perf, active_sector_map, risk_pct=RISK_PER_TRADE):
-    # `df` is now a pre-fetched, per-symbol OHLCV frame sliced out of a single batched
-    # universe download (see batch_download()/run_agent()) instead of a fresh
-    # individual yf.download() call per stock — the main perf change for the
-    # dynamic (S&P 500-sized) universe.
+def momentum_6m(df):
+    """6-month momentum skipping the latest month: close 21 bars ago vs 126 bars ago."""
     try:
-        if df is None or df.empty or len(df) < 250:
+        if df is None or len(df) < 130:
+            return None
+        c = df['Close'].dropna()
+        if len(c) < 130:
+            return None
+        return float(c.iloc[-22] / c.iloc[-127] - 1)
+    except Exception:
+        return None
+
+def check_stock(symbol, df, mom_pct, sector_perf, active_sector_map, risk_pct=RISK_PER_TRADE):
+    """
+    Momentum Dip setup: a short, sharp pullback in one of the market's strongest stocks.
+
+      - Long-term uptrend : close > 200-day SMA
+      - Leader            : 6-month momentum in the top MOM_TOP_PCT of the scanned universe
+                            (`mom_pct` = this stock's percentile rank, 0-1, computed in run_agent)
+      - Short-term dip    : 2-day RSI < DIP_RSI2_MAX
+      - Stop              : entry - DIP_STOP_ATR x ATR(14)
+      - Exit              : first close above the 5-day SMA, or after DIP_MAX_HOLD trading days
+
+    Backtested 2018-2026 on the S&P 500 + curated universe (see backtest.py): ~+0.5% per
+    trade over ~3.4 days, ~68% winners, positive in 8 of 9 years. The old multi-indicator
+    score it replaced did no better than picking random stocks.
+    """
+    try:
+        if df is None or df.empty:
             return None
         df = df.dropna()
-        if df.empty or len(df) < 250:
+        if len(df) < 210 or mom_pct is None or mom_pct < 1 - MOM_TOP_PCT:
             return None
 
-        price = float(df['Close'].iloc[-1])
+        close = df['Close']
+        price = float(close.iloc[-1])
         if price < 5.0:
             return None
-
-        avg_dv = float(df['Close'].iloc[-20:].mean() * df['Volume'].iloc[-20:].mean())
+        avg_dv = float((close * df['Volume']).iloc[-20:].mean())
         if avg_dv < 2_000_000:
             return None
 
-        # ---- Indicators ----
-        df['EMA10']  = ta.trend.ema_indicator(df['Close'], window=10)
-        df['EMA20']  = ta.trend.ema_indicator(df['Close'], window=20)
-        df['EMA50']  = ta.trend.ema_indicator(df['Close'], window=50)
-        df['EMA200'] = ta.trend.ema_indicator(df['Close'], window=200)
-        df['RSI']    = ta.momentum.rsi(df['Close'], window=14)
-        df['AvgVol'] = df['Volume'].rolling(20).mean()
-        df['HH20']   = df['High'].rolling(20).max()
-        df['High52'] = df['High'].rolling(252).max()
-
-        df['TR'] = (
-            df['High'] - df['Low']
-        ).combine(abs(df['High'] - df['Close'].shift(1)), max
-        ).combine(abs(df['Low']  - df['Close'].shift(1)), max)
-        df['ATR'] = df['TR'].rolling(14).mean()
-
-        df['ADX'] = ta.trend.adx(df['High'], df['Low'], df['Close'], window=14)
-        adx_val   = float(df['ADX'].iloc[-1]) if not pd.isna(df['ADX'].iloc[-1]) else 20.0
-
-        df['BB_upper'] = ta.volatility.bollinger_hband(df['Close'], window=20, window_dev=2)
-        df['BB_lower'] = ta.volatility.bollinger_lband(df['Close'], window=20, window_dev=2)
-        df['BB_width'] = (df['BB_upper'] - df['BB_lower']) / df['Close']
-        bb_squeeze = False
-        if len(df) >= 60:
-            pct20      = float(df['BB_width'].iloc[-60:].quantile(0.20))
-            bb_squeeze = float(df['BB_width'].iloc[-1]) < pct20
-
-        df['OBV']       = ta.volume.on_balance_volume(df['Close'], df['Volume'])
-        df['OBV_EMA20'] = ta.trend.ema_indicator(df['OBV'], window=20)
-        obv_rising      = float(df['OBV'].iloc[-1]) > float(df['OBV_EMA20'].iloc[-1])
-        obv_slope       = float(df['OBV'].iloc[-1]) - float(df['OBV'].iloc[-10])
-        obv_trend_pos   = obv_slope > 0
-
-        macd_line   = ta.trend.macd(df['Close'], window_slow=26, window_fast=12)
-        macd_signal = ta.trend.macd_signal(df['Close'], window_slow=26, window_fast=12, window_sign=9)
-        macd_hist   = ta.trend.macd_diff(df['Close'], window_slow=26, window_fast=12, window_sign=9)
-
-        macd_now      = float(macd_line.iloc[-1])
-        macd_sig_now  = float(macd_signal.iloc[-1])
-        macd_prev     = float(macd_line.iloc[-2])
-        macd_sig_prev = float(macd_signal.iloc[-2])
-        macd_hist_now = float(macd_hist.iloc[-1])
-        macd_hist_prv = float(macd_hist.iloc[-2])
-
-        macd_crossed_up  = macd_prev < macd_sig_prev and macd_now > macd_sig_now
-        macd_above_sig   = macd_now > macd_sig_now
-        macd_hist_rising = macd_hist_now > macd_hist_prv and macd_hist_now > 0
-
-        s3  = df['Close'].pct_change(63).iloc[-1]
-        s6  = df['Close'].pct_change(126).iloc[-1]
-        s12 = df['Close'].pct_change(252).iloc[-1]
-        n3  = spy_df['Close'].pct_change(63).iloc[-1]
-        n6  = spy_df['Close'].pct_change(126).iloc[-1]
-        n12 = spy_df['Close'].pct_change(252).iloc[-1]
-        rs  = sum([s3 > n3, s6 > n6, s12 > n12])
-
-        latest = df.iloc[-1]
-        prev   = df.iloc[-2]
-        score  = 0
-
-        if rs >= 2:  score += 2
-        if rs == 3:  score += 1
-
-        if latest['EMA10']  > latest['EMA20']:  score += 2
-        if latest['EMA20']  > latest['EMA50']:  score += 2
-        if latest['EMA50']  > latest['EMA200']: score += 2
-        if latest['Close']  > latest['EMA50']:  score += 1
-        if latest['Close']  > latest['EMA200']: score += 2
-
-        rsi      = float(latest['RSI'])
-        rsi_prev = float(prev['RSI'])
-        if rsi > 60 and rsi_prev < 60:         score += 2
-        elif 55 < rsi < 75:                     score += 2
-        elif 40 < rsi < 55 and rsi > rsi_prev: score += 1
-        elif rsi > 80:                          score -= 2
-        elif rsi < 40:                          score -= 1
-
-        if latest['Close'] > prev['HH20']:  score += 2
-        ath_dist = latest['Close'] / latest['High52']
-        if ath_dist > 0.90:                 score += 2
-        elif ath_dist > 0.80:              score += 1
-
-        rvol = 0.0
-        if latest['AvgVol'] > 0:
-            rvol = latest['Volume'] / latest['AvgVol']
-            if rvol > 2.0:    score += 2
-            elif rvol > 1.5:  score += 1
-
-        if latest['ATR'] > df['ATR'].iloc[-5]:  score += 1
-
-        dist = (latest['Close'] - latest['EMA20']) / latest['EMA20']
-        if dist < 0.05:    score += 2
-        elif dist < 0.08:  score += 1
-        elif dist > 0.20:  score -= 1
-
-        if len(df) >= 60 and len(spy_df) >= 60:
-            sr = float(df['Close'].squeeze().pct_change(60).iloc[-1])
-            nr = float(spy_df['Close'].squeeze().pct_change(60).iloc[-1])
-            if sr > nr * 1.5:  score += 2
-            elif sr > nr:      score += 1
-
-        recent_high = df['High'].iloc[-10:].max()
-        if latest['Close'] < recent_high * 0.85:  score -= 2
-
-        # ---- OVEREXTENSION / "STRAIGHT UP, NEEDS COOL-OFF" ----
-        # Mirrors the India agent's check: catches the case a human reviewer
-        # flags on sight ("looks nice but straight up here, would be better
-        # with 1-2 days cool off") that the rest of the scorer actually
-        # rewards — fresh RSI cross, rising MACD hist, rising OBV, and a
-        # volume breakout all fire on exactly this kind of sharp, un-rested
-        # move. This looks at the last 3 sessions directly instead of
-        # relying on those proxies.
-        last3 = df.iloc[-3:]
-        up_days_3 = int((last3['Close'] > last3['Open']).sum())
-        move_3d = float((latest['Close'] - df['Close'].iloc[-4]) / df['Close'].iloc[-4]) if len(df) >= 4 else 0.0
-        no_pullback_1d = float(latest['Close']) > float(prev['Close']) and float(prev['Close']) > float(df['Close'].iloc[-3])
-
-        overextended = False
-        if move_3d > 0.08 and up_days_3 >= 2:
-            overextended = True
-        if up_days_3 == 3 and move_3d > 0.06:
-            overextended = True
-
-        # Institutional breakout exception: when volume is 3x+ normal AND stock is
-        # near/at its 52-week high, the move is likely real institutional buying — not
-        # retail chasing. Applying the overextension penalty here would have filtered
-        # out CRM/BE-style gap-and-hold breakouts. Skip the penalty in this case.
-        is_institutional_breakout = rvol > 3.0 and ath_dist > 0.92
-
-        if not is_institutional_breakout:
-            if overextended:
-                score -= 3
-            elif no_pullback_1d and move_3d > 0.05:
-                score -= 1
-
-        if obv_rising and obv_trend_pos:               score += 2
-        elif obv_rising:                                score += 1
-        elif not obv_trend_pos and not obv_rising:      score -= 2
-
-        if macd_crossed_up:                             score += 2
-        elif macd_above_sig and macd_hist_rising:       score += 2
-        elif macd_above_sig:                            score += 1
-        elif not macd_above_sig and macd_hist_now < 0: score -= 1
-
-        if adx_val > 30:    score += 2
-        elif adx_val > 20:  score += 1
-        elif adx_val < 15:  score -= 2
-
-        if bb_squeeze:  score += 3
-
-        candle_score = candle_quality_score(df)
-        score += candle_score
-
-        stock_sector = active_sector_map.get(symbol, "OTHER")
-        if stock_sector in hot_sectors:  score += 2
-
-        # ---- SETUP TYPE (determined before threshold so we can adjust it) ----
-        if bb_squeeze and latest['Close'] > prev['HH20']:
-            setup_type = "Squeeze Breakout"
-        elif latest['Close'] > prev['HH20'] and rvol > 2.0:
-            setup_type = "Volume Breakout"
-        elif dist < 0.05 and rsi > 50:
-            setup_type = "EMA20 Pullback"
-        elif ath_dist > 0.95:
-            setup_type = "ATH Breakout"
-        elif bb_squeeze:
-            setup_type = "Squeeze Setup"
-        else:
-            setup_type = "Trend Continuation"
-
-        # Breakout setups (Volume, ATH, Squeeze) already embed hard price/volume
-        # evidence in their definition — they don't need as many confirmatory points
-        # from the EMA-stack and RS scoring to be valid. Lowering their bar by 4
-        # points (22 → 18) catches early-stage breakouts that haven't yet built a
-        # clean EMA stack but have the volume and price proof.
-        if setup_type in ("Volume Breakout", "ATH Breakout", "Squeeze Breakout"):
-            effective_threshold = SCORE_THRESHOLD - 4
-        else:
-            effective_threshold = SCORE_THRESHOLD
-
-        # Momentum alert: high-volume breakout near 52w high with a minimum sanity
-        # score — flagged even if it doesn't reach the effective_threshold. Sent as
-        # a separate "⚡ MOMENTUM ALERT" so the user knows it's higher risk.
-        is_momentum_alert = (
-            rvol > 2.5 and
-            float(latest['Close']) > float(prev['HH20']) and
-            ath_dist > 0.90 and
-            float(latest['Close']) > float(latest['EMA50']) and
-            score >= 12
-        )
-
-        if score < effective_threshold and not is_momentum_alert:
+        sma200 = float(close.rolling(200).mean().iloc[-1])
+        if price <= sma200:
             return None
 
-        # ---- POSITION SIZING ----
-        entry          = float(latest['Close'])
-        atr            = float(latest['ATR'])
-        ten_bar_low    = float(df['Low'].iloc[-10:].min())
-        atr_stop       = entry - (MAX_ATR_STOP * atr)
-        stop           = max(ten_bar_low, atr_stop)
-        risk           = entry - stop
+        rsi2 = float(ta.momentum.rsi(close, window=2).iloc[-1])
+        if not rsi2 < DIP_RSI2_MAX:
+            return None
 
-        if risk <= 0 or risk > entry * 0.12:
+        tr = pd.concat([
+            df['High'] - df['Low'],
+            (df['High'] - close.shift()).abs(),
+            (df['Low'] - close.shift()).abs(),
+        ], axis=1).max(axis=1)
+        atr  = float(tr.rolling(14).mean().iloc[-1])
+        sma5 = float(close.rolling(5).mean().iloc[-1])
+
+        entry = price
+        stop  = entry - DIP_STOP_ATR * atr
+        risk  = entry - stop
+        if risk <= 0 or risk > entry * 0.15:
             return None
 
         max_by_dollars = int((ACCOUNT_SIZE * MAX_POSITION_PCT) / entry)
         size           = min(int((ACCOUNT_SIZE * risk_pct) / risk), max_by_dollars)
         if size <= 0:
             return None
-
-        target   = entry + (risk * RR_RATIO)
         invested = round(entry * size, 0)
-        acct_pct = round((invested / ACCOUNT_SIZE) * 100, 1)
 
-        if candle_score >= 3:    candle_label = "Strong"
-        elif candle_score >= 1:  candle_label = "Good"
-        elif candle_score == 0:  candle_label = "Neutral"
-        else:                    candle_label = "Weak"
-
-        if macd_crossed_up:   macd_label = "Fresh cross"
-        elif macd_above_sig:  macd_label = "Bullish"
-        else:                  macd_label = "Bearish"
-
-        obv_label = "Confirming" if obv_rising and obv_trend_pos else \
-                    "Rising"     if obv_rising else "Diverging"
-
-        adx_label = f"{adx_val:.0f} ({'Strong' if adx_val > 30 else 'Moderate' if adx_val > 20 else 'Weak'})"
-
-        if overextended:
-            extension_label = f"⚠️ Extended ({move_3d:+.1%}/3d, {up_days_3}/3 up) — consider 1-2 day cool-off"
-        elif no_pullback_1d and move_3d > 0.05:
-            extension_label = f"Slightly stretched ({move_3d:+.1%}/3d)"
-        else:
-            extension_label = "OK"
-
-        # ---- SECTOR MOMENTUM (day/week) for this pick's sector ----
+        stock_sector = active_sector_map.get(symbol, "OTHER")
         sp = sector_perf.get(stock_sector, {}) if sector_perf else {}
-        sector_day_str  = f"{sp['ret_1d']:+.1%}" if 'ret_1d' in sp else "n/a"
-        sector_week_str = f"{sp['ret_1w']:+.1%}" if 'ret_1w' in sp else "n/a"
 
         return {
             "Symbol":     symbol,
             "Sector":     stock_sector,
-            "Score":      score,
-            "Setup":      setup_type,
-            "Candle":     candle_label,
-            "MACD":       macd_label,
-            "OBV":        obv_label,
-            "ADX":        adx_label,
-            "SectorDay":  sector_day_str,
-            "SectorWeek": sector_week_str,
-            "Squeeze":    "Yes" if bb_squeeze else "No",
-            "Extension":  extension_label,
-            "RVOL":       round(rvol, 1),
-            "RSI":        round(rsi, 1),
-            "Move3d":     f"{move_3d:+.1%}",
-            "MomentumAlert": is_momentum_alert and score < effective_threshold,
-            "Entry":    round(entry, 2),
-            "Stop":     round(float(stop), 2),
-            "Target":   round(float(target), 2),
-            "Size":     size,
-            "Invested": invested,
-            "AcctPct":  acct_pct,
-            "Risk$":    round(risk * size, 0),
-            "Reward$":  round((float(target) - entry) * size, 0),
+            "Setup":      "Momentum Dip",
+            "Mom6m":      round(momentum_6m(df) * 100, 1),
+            "MomPct":     int(round(mom_pct * 100)),
+            "RSI2":       round(rsi2, 1),
+            "RSI":        round(float(ta.momentum.rsi(close, window=14).iloc[-1]), 1),
+            "Move3d":     f"{price / float(close.iloc[-4]) - 1:+.1%}",
+            "AboveSMA200": f"{price / sma200 - 1:+.1%}",
+            "ATRpct":     round(atr / price * 100, 1),
+            "SectorDay":  f"{sp['ret_1d']:+.1%}" if 'ret_1d' in sp else "n/a",
+            "SectorWeek": f"{sp['ret_1w']:+.1%}" if 'ret_1w' in sp else "n/a",
+            "Entry":      round(entry, 2),
+            "Stop":       round(stop, 2),
+            "Target":     round(sma5, 2),       # exit reference: first close above the 5-day SMA
+            "Size":       size,
+            "Invested":   invested,
+            "AcctPct":    round((invested / ACCOUNT_SIZE) * 100, 1),
+            "Risk$":      round(risk * size, 0),
+            "Reward$":    round(max(sma5 - entry, 0) * size, 0),
         }
 
     except Exception as e:
@@ -1209,8 +1006,8 @@ def get_recent_performance(n_days: int = 60) -> dict:
     Read trade_log.csv and compute signal quality stats for the last n_days.
 
     Logs every signal the bot generated — not only the trades the user took.
-    This measures the screener's accuracy, which Claude uses to weight setups
-    (e.g. "ATH Breakout has 70% win rate lately, EMA Pullback only 40%").
+    Only Momentum Dip signals count (older setups were retired); a win is a
+    signal that closed at a profit.
     """
     path = Path(TRADE_LOG_FILE)
     if not path.exists():
@@ -1223,31 +1020,31 @@ def get_recent_performance(n_days: int = 60) -> dict:
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
         cutoff  = datetime.now() - timedelta(days=n_days)
         recent  = df[df["date"] >= cutoff].copy()
-        closed  = recent[recent["outcome"].isin(["TARGET HIT", "STOPPED"])].copy()
+        recent  = recent[recent["setup"] == "Momentum Dip"]
+        closed  = recent[recent["outcome"].notna() & recent["pnl_pct"].notna()].copy()
 
         def stats(rows):
             total = len(rows)
-            wins  = int((rows["outcome"] == "TARGET HIT").sum())
+            wins  = int((rows["pnl_pct"] > 0).sum())
             return {
                 "trades":   total,
                 "wins":     wins,
                 "win_rate": round(wins / total, 2) if total > 0 else None,
+                "avg_pct":  round(float(rows["pnl_pct"].mean()), 2) if total > 0 else None,
             }
 
-        by_setup  = {g: stats(gdf) for g, gdf in closed.groupby("setup")  if len(gdf) >= 2}
-        by_sector = {g: stats(gdf) for g, gdf in closed.groupby("sector") if len(gdf) >= 2}
+        by_sector = {g: stats(gdf) for g, gdf in closed.groupby("sector") if len(gdf) >= MIN_PERF_SAMPLE}
 
         last5  = closed.sort_values("outcome_date").tail(5)
         streak = " → ".join(
-            "✅W" if r == "TARGET HIT" else "❌L"
-            for r in last5["outcome"]
+            "✅W" if p > 0 else "❌L"
+            for p in last5["pnl_pct"]
         ) if not last5.empty else "No closed trades yet"
 
         return {
             "window_days":    n_days,
             "total_signals":  len(recent),
             "overall":        stats(closed),
-            "by_setup":       by_setup,
             "by_sector":      by_sector,
             "recent_streak":  streak,
         }
@@ -1286,14 +1083,10 @@ def claude_reason(candidates: list, market_ctx: dict, perf: dict) -> dict:
         wr      = overall.get("win_rate")
         n       = overall.get("trades", 0)
         perf_lines.append(
-            f"Overall win rate (last {perf.get('window_days', 60)}d): "
-            + (f"{int(wr*100)}% across {n} closed signals" if wr is not None else "Not enough data yet")
+            f"Momentum Dip live results (last {perf.get('window_days', 60)}d): "
+            + (f"{int(wr*100)}% winners, avg {overall.get('avg_pct', 0):+.2f}%/trade across {n} closed signals"
+               if wr is not None else "Not enough data yet")
         )
-        by_setup = perf.get("by_setup", {})
-        if by_setup:
-            perf_lines.append("Win rate by setup type:")
-            for s, v in sorted(by_setup.items(), key=lambda x: -(x[1].get("win_rate") or 0)):
-                perf_lines.append(f"  {s}: {int(v['win_rate']*100)}% ({v['wins']}/{v['trades']})")
         by_sector = perf.get("by_sector", {})
         if by_sector:
             perf_lines.append("Win rate by sector:")
@@ -1305,28 +1098,38 @@ def claude_reason(candidates: list, market_ctx: dict, perf: dict) -> dict:
     cand_lines = []
     for i, c in enumerate(candidates, 1):
         cand_lines.append(
-            f"{i}. {c['Symbol']} [{c['Sector']}] | {c['Setup']} | "
-            f"Score:{c['Score']} RVOL:{c['RVOL']}x RSI:{c['RSI']} "
-            f"MACD:{c['MACD']} OBV:{c['OBV']} ADX:{c['ADX']} "
-            f"Entry:${c['Entry']} Stop:${c['Stop']} Target:${c['Target']} "
-            f"Extension:{c['Extension']} "
-            f"Sector 1D:{c['SectorDay']} 1W:{c['SectorWeek']}"
+            f"{i}. {c['Symbol']} [{c['Sector']}] | 6m momentum:{c['Mom6m']:+.0f}% "
+            f"(top {100 - c['MomPct']}%) | RSI2:{c['RSI2']} RSI14:{c['RSI']} 3d move:{c['Move3d']} "
+            f"| vs SMA200:{c['AboveSMA200']} ATR:{c['ATRpct']}% "
+            f"| Entry:${c['Entry']} Stop:${c['Stop']} 5d-SMA exit ref:${c['Target']} "
+            f"| Sector 1D:{c['SectorDay']} 1W:{c['SectorWeek']}"
         )
 
     prompt = f"""You are a professional swing trading analyst reviewing today's scan for US stocks.
 The user will review these alerts and decide which trades to actually take — they do NOT enter every signal.
-Your job: help them prioritise and explain the WHY using the performance data below.
+
+STRATEGY — "Momentum Dip": buy a short, sharp pullback (2-day RSI < {DIP_RSI2_MAX}) in stocks that are
+above their 200-day SMA and in the top {int(MOM_TOP_PCT*100)}% of the universe by 6-month momentum. Exit at the
+first close above the 5-day SMA (typically 2-5 days), stop at {DIP_STOP_ATR}x ATR, max {DIP_MAX_HOLD} days.
+Backtest 2018-2026: ~+0.5%/trade, ~68% winners, positive in 8 of 9 years. The dip IS the setup —
+weak short-term indicators (low RSI, red candles, bearish MACD) are expected and are not a reason to pass.
+Candidates are already ordered by 6-month momentum, which is the ranking that was backtested.
+
+Your job: add judgement the price data can't see — e.g. a dip caused by a fundamental break
+(earnings/guidance collapse, fraud, downgrade on a broken thesis) rather than ordinary profit-taking,
+several picks that are really one bet, or unusual market stress.
 
 MARKET CONDITIONS:
-- S&P 500  : {market_ctx.get('regime', 'Bullish')}
+- S&P 500  : {market_ctx.get('regime', 'N/A')}
 - VIX      : {market_ctx.get('vix_label', 'N/A')}
 - Breadth  : {market_ctx.get('breadth_label', 'N/A')} ({market_ctx.get('breadth', 'N/A')}% above EMA50)
 - Hot sectors: {market_ctx.get('hot_str', 'None')}
 
-RECENT SIGNAL PERFORMANCE (measures screener accuracy, not user P&L):
+RECENT SIGNAL PERFORMANCE (screener accuracy, not user P&L; sectors with fewer than
+{MIN_PERF_SAMPLE} closed signals are omitted as too small to judge):
 {chr(10).join(perf_lines) if perf_lines else 'No performance data yet — first scan.'}
 
-TODAY'S CANDIDATES ({len(candidates)} stocks, ranked by score):
+TODAY'S CANDIDATES ({len(candidates)} stocks, ranked by 6-month momentum):
 {chr(10).join(cand_lines)}
 
 Respond ONLY with a valid JSON object — no markdown fences, no extra text:
@@ -1334,20 +1137,20 @@ Respond ONLY with a valid JSON object — no markdown fences, no extra text:
   "market_read": "<2 sentences: current market tone and what it means for swing trades today>",
   "picks": [
     {{"symbol": "TICKER", "conviction": "high|medium|low",
-      "reason": "<1-2 sentences referencing indicators AND recent performance data>"}}
+      "reason": "<1-2 sentences: why this dip looks like a buyable pullback, or what to watch>"}}
   ],
-  "skip": [
-    {{"symbol": "TICKER", "reason": "<1 sentence why you'd pass on this one>"}}
+  "cautions": [
+    {{"symbol": "TICKER", "reason": "<1 sentence: the specific concern>"}}
   ],
   "overall_confidence": "high|medium|low",
   "confidence_reason": "<one sentence>"
 }}
 
 Rules:
-- picks: select the top 3-5 by conviction. Downweight setups/sectors with poor recent win rate.
-- skip: list any candidates you'd avoid (sector exhaustion, poor setup history, overextension).
-- Be specific — cite actual numbers from the indicator data and performance stats.
-- A setup with 70%+ win rate recently deserves higher conviction than one at 40%.
+- picks: give a conviction note for EVERY candidate, in the order given.
+- cautions: only for a concrete, specific concern (not "RSI is low" or "MACD bearish" — that is the setup).
+  Cautions are shown to the user as warnings; they do not remove the pick. Empty list is fine.
+- Be specific — cite actual numbers. Don't invent news; if you don't know why a stock dipped, say so.
 """
 
     try:
@@ -1420,50 +1223,28 @@ def run_agent():
     update_trade_outcomes()
     print_trade_stats()
 
-    # ---- Step 1: Market regime filters ----
-    if not market_is_bullish():
-        msg = (
-            f"📉 S&P below EMA50/EMA200 — cash only\n"
-            f"{datetime.now().strftime('%d %b %Y %H:%M')}"
-        )
-        send_telegram(msg)
-        return
+    # ---- Step 1: Market context ----
+    # Informational only: the S&P-trend and breadth gates made Momentum Dip results
+    # worse in backtests (dips in leaders during market pullbacks are among the best trades).
+    spx_bullish  = market_is_bullish()
+    regime_label = "Bullish (above EMA50 + EMA200)" if spx_bullish else "Weak (below EMA50/EMA200)"
 
     vix = get_vix()
-    if vix > 30:
-        send_telegram(
-            f"⚠️ VIX={vix:.0f} — extreme fear mode\n"
-            f"Swing setups fail at high rates when VIX >30.\n"
-            f"Skipping scan — stay in cash.\n"
-            f"{datetime.now().strftime('%d %b %Y %H:%M')}"
-        )
-        return
-
     effective_risk = RISK_PER_TRADE * (0.5 if vix > 25 else 1.0)
     vix_label      = f"Elevated ({vix:.0f}) — half size" if vix > 25 else f"Normal ({vix:.0f})"
 
     print("\nChecking market breadth...")
-    breadth = get_market_breadth()
-    if breadth < 40:
-        msg = (
-            f"⚠️ Market breadth WEAK ({breadth}%)\n"
-            f"Only {breadth}% of S&P stocks healthy.\n"
-            f"Skipping — too risky.\n"
-            f"{datetime.now().strftime('%d %b %Y %H:%M')}"
-        )
-        send_telegram(msg)
-        return
-
+    breadth       = get_market_breadth()
     breadth_label = "Strong" if breadth >= 60 else "Mixed" if breadth >= 40 else "Weak"
 
     print("\nChecking sector rotation...")
-    hot_sectors, sector_perf, sector_strength_cache = get_sector_rotation()
+    hot_sectors, sector_perf, _ = get_sector_rotation()
 
     # ---- Step 2: Build universe ----
     active_sector_map = get_dynamic_universe(sector_map) if EXPAND_UNIVERSE else dict(sector_map)
 
     # Inject today's top movers so stocks outside the S&P 500 or curated list
-    # still get scanned on their breakout day (e.g. mid-caps, recent IPOs).
+    # still get scanned (e.g. mid-caps, recent IPOs).
     print("\nFetching today's top movers...")
     for sym in get_top_movers(40):
         if sym not in active_sector_map:
@@ -1485,174 +1266,129 @@ def run_agent():
         send_telegram(msg)
         return
 
-    # ---- Step 4: SPY reference ----
-    spy_df = yf.download("^GSPC", period="1y", interval="1d", progress=False)
-    if spy_df is None or spy_df.empty:
-        return
-    spy_df = spy_df.dropna()
-    spy_df.columns = spy_df.columns.get_level_values(0)
-
-    # ---- Step 5: Scan ----
-    picks         = []
-    sector_counts = {}
-    skipped_fund  = 0
-    skipped_sec   = 0
-    skipped_earn  = 0
-    skipped_corr  = 0
-    skipped_port  = 0
-
+    # ---- Step 4: Price history + 6-month momentum rank across the universe ----
     print(f"\nScanning {len(all_stocks)} stocks...")
-
-    # Batch-download 2y price history for the ENTIRE (now S&P-500-sized) universe in
-    # one pass (a handful of chunked/threaded calls) instead of one download per
-    # stock inside the loop below — the main perf change needed once EXPAND_UNIVERSE
-    # started pulling in ~450+ tickers instead of the original 139.
     print("Batch-downloading price history for the full universe...")
     stock_frames = batch_download(all_stocks, period="2y", interval="1d")
     print(f"  Got price data for {len(stock_frames)}/{len(all_stocks)} symbols.")
 
+    mom = {}
+    for sym, df in stock_frames.items():
+        m = momentum_6m(df)
+        if m is None:
+            continue
+        c = df['Close'].dropna()
+        # rank only among tradable names, matching the backtest universe
+        if float(c.iloc[-1]) >= 5.0 and float((c * df['Volume']).iloc[-20:].mean()) >= 2_000_000:
+            mom[sym] = m
+    mom_pct = pd.Series(mom).rank(pct=True).to_dict() if mom else {}
+
+    # ---- Step 5: Technical scan (cheap), then per-stock lookups only on hits ----
+    raw_hits = []
     for stock in all_stocks:
+        result = check_stock(stock, stock_frames.get(stock), mom_pct.get(stock),
+                             sector_perf, active_sector_map, risk_pct=effective_risk)
+        if result:
+            raw_hits.append(result)
+    # Strongest momentum first — the ranking that was backtested
+    raw_hits.sort(key=lambda x: x['Mom6m'], reverse=True)
+    print(f"  {len(raw_hits)} Momentum Dip setups before earnings/fundamental/portfolio checks")
+
+    already_open  = open_dip_symbols()   # alerted in an earlier run and not exited yet
+    picks         = []
+    sector_counts = {}
+    skipped_open  = 0
+    skipped_fund  = 0
+    skipped_earn  = 0
+    skipped_corr  = 0
+    skipped_port  = 0
+
+    for result in raw_hits:
+        stock = result['Symbol']
+        sec   = result['Sector']
+        if stock in already_open:
+            skipped_open += 1
+            continue
+        if sector_counts.get(sec, 0) >= MAX_PER_SECTOR:
+            skipped_corr += 1
+            continue
         if not passes_fundamental_filter(stock):
             skipped_fund += 1
             continue
-        # Small pacing only around the remaining individual per-symbol calls below
-        # (.info was just called above; .calendar is called by is_near_earnings).
-        # Price data itself is already batched, so this no longer needs to be
-        # 0.8s per stock like before.
-        time.sleep(0.15)
-
-        etf = active_sector_map.get(stock, "OTHER")
-        if etf not in {"OTHER","GLD","SLV"}:
-            if etf not in sector_strength_cache:
-                sector_strength_cache[etf] = sector_is_strong(etf)
-            if not sector_strength_cache[etf]:
-                skipped_sec += 1
-                continue
-
         if is_near_earnings(stock):
             skipped_earn += 1
             continue
+        blocked, block_reason = pick_blocked_by_portfolio(result, positions, sector_pct)
+        if blocked:
+            print(f"  {stock}: portfolio block — {block_reason}")
+            skipped_port += 1
+            continue
+        time.sleep(0.15)   # pacing for the per-symbol .info/.calendar calls above
 
-        result = check_stock(stock, stock_frames.get(stock), spy_df, hot_sectors, sector_perf, active_sector_map, risk_pct=effective_risk)
-
-        if result:
-            # Portfolio concentration check
-            blocked, block_reason = pick_blocked_by_portfolio(result, positions, sector_pct)
-            if blocked:
-                print(f"  {stock}: portfolio block — {block_reason}")
-                skipped_port += 1
-                continue
-
-            sec = result['Sector']
-            if sector_counts.get(sec, 0) >= MAX_PER_SECTOR:
-                print(f"  {stock}: sector {sec} full ({MAX_PER_SECTOR}) — skip")
-                skipped_corr += 1
-                continue
-            sector_counts[sec] = sector_counts.get(sec, 0) + 1
-
-            print(
-                f"  ✅ {result['Symbol']:6} [{result['Sector']:5}]"
-                f" score:{result['Score']:3}"
-                f" setup:{result['Setup']:20}"
-                f" MACD:{result['MACD']:12}"
-                f" OBV:{result['OBV']:12}"
-                f" ADX:{result['ADX']}"
-            )
-            picks.append(result)
+        sector_counts[sec] = sector_counts.get(sec, 0) + 1
+        print(
+            f"  ✅ {stock:6} [{sec:5}] 6m mom:{result['Mom6m']:+6.1f}% (top {100 - result['MomPct']}%)"
+            f" RSI2:{result['RSI2']:5.1f} 3d:{result['Move3d']}"
+        )
+        picks.append(result)
+        if len(picks) >= TOP_PICKS:
+            break
 
     print(f"\n{'='*55}")
-    print(f"Scanned:{len(all_stocks)} Fund❌:{skipped_fund} "
-          f"Sector❌:{skipped_sec} Earn❌:{skipped_earn} "
-          f"Corr❌:{skipped_corr} Port❌:{skipped_port} ✅:{len(picks)}")
+    print(f"Scanned:{len(all_stocks)} Setups:{len(raw_hits)} AlreadyOpen:{skipped_open} Fund❌:{skipped_fund} "
+          f"Earn❌:{skipped_earn} Corr❌:{skipped_corr} Port❌:{skipped_port} ✅:{len(picks)}")
     print(f"{'='*55}")
 
     if not picks:
         send_telegram(
             f"🔍 US Scan — {datetime.now().strftime('%d %b %Y %H:%M')}\n"
-            f"Market bullish | Breadth:{breadth_label} ({breadth}%)\n"
-            f"No high-quality setups found — wait for next scan."
+            f"S&P: {regime_label} | Breadth: {breadth_label} ({breadth}%)\n"
+            f"No new Momentum Dip setups ({skipped_open} already alerted and still open). Wait for next scan."
         )
         return
 
-    # ---- Step 6: Separate quality picks from momentum-only alerts ----
-    regular_picks = sorted(
-        [p for p in picks if not p.get('MomentumAlert')],
-        key=lambda x: (x['Score'], x['Reward$']), reverse=True
-    )
-    momentum_only = sorted(
-        [p for p in picks if p.get('MomentumAlert')],
-        key=lambda x: x['RVOL'], reverse=True
-    )
-    # Give Claude up to 10 candidates to reason over (more context = better ranking)
-    candidates = regular_picks[:10]
-
+    top_picks = picks
     hot_str = ", ".join(sorted(hot_sectors)) if hot_sectors else "None"
     pos_str = f"{len(positions)} open" if positions else "None"
 
-    # ---- Step 6b: Read recent signal performance from trade_log ----
+    # ---- Step 6: Read recent signal performance from trade_log ----
     print("\nReading recent signal performance from trade log...")
     perf = get_recent_performance(60)
     if perf and perf.get("overall", {}).get("trades", 0) > 0:
         ov = perf["overall"]
-        wr = ov.get("win_rate")
-        print(f"  Last 60d: {int(wr*100)}% win rate over {ov['trades']} closed signals" if wr else "  No closed signals yet")
+        print(f"  Last 60d: {int(ov['win_rate']*100)}% winners, avg {ov['avg_pct']:+.2f}% over {ov['trades']} closed signals")
 
-    # ---- Step 6c: Claude reasoning layer ----
+    # ---- Step 6b: Claude commentary (annotates picks; does not remove or reorder them) ----
     market_ctx = {
-        "regime":        "Bullish (EMA50 + EMA200)",
+        "regime":        regime_label,
         "vix_label":     vix_label,
         "breadth_label": breadth_label,
         "breadth":       breadth,
         "hot_str":       hot_str,
     }
-    claude_output = {}
-    if candidates:
-        print(f"\nAsking Claude to reason over {len(candidates)} candidates...")
-        claude_output = claude_reason(candidates, market_ctx, perf)
-        if claude_output:
-            print(f"  🧠 Market read: {claude_output.get('market_read','')[:80]}...")
-            print(f"  🧠 Claude picks: {[p['symbol'] for p in claude_output.get('picks',[])]}")
-            print(f"  🧠 Claude skip : {[s['symbol'] for s in claude_output.get('skip',[])]}")
+    print(f"\nAsking Claude to review {len(top_picks)} picks...")
+    claude_output = claude_reason(top_picks, market_ctx, perf)
+    if claude_output:
+        print(f"  🧠 Market read: {claude_output.get('market_read','')[:80]}...")
+        print(f"  🧠 Cautions: {[c['symbol'] for c in claude_output.get('cautions',[])]}")
+    claude_picks_map = {p["symbol"]: p for p in claude_output.get("picks", [])} if claude_output else {}
+    caution_map      = {c["symbol"]: c["reason"] for c in claude_output.get("cautions", [])} if claude_output else {}
 
-    # ---- Step 6d: Re-rank top_picks by Claude's conviction order ----
-    claude_picks_map = {}
-    skip_set         = set()
-    if claude_output and claude_output.get("picks"):
-        claude_order     = [p["symbol"] for p in claude_output["picks"]]
-        claude_picks_map = {p["symbol"]: p for p in claude_output["picks"]}
-        skip_set         = {s["symbol"] for s in claude_output.get("skip", [])}
-        # Reorder candidates to match Claude's ranking; append any Claude didn't mention
-        ordered  = [c for sym in claude_order for c in candidates if c['Symbol'] == sym]
-        fallback = [c for c in candidates if c['Symbol'] not in set(claude_order) | skip_set]
-        top_picks = (ordered + fallback)[:TOP_PICKS]
-    else:
-        top_picks = candidates[:TOP_PICKS]
-
-    # ---- Step 6e: News + 15-min on final top picks + momentum alerts ----
+    # ---- Step 6c: News on final picks ----
     sentiment_map = {}
-    confirmed_map = {}
-    all_checked   = top_picks + momentum_only[:3]
-    print(f"\nRunning post-scan checks on {len(all_checked)} picks ({len(top_picks)} quality + {min(len(momentum_only),3)} momentum)...")
-    for pick in all_checked:
-        sym = pick['Symbol']
-        if NEWS_SENTIMENT:
+    if NEWS_SENTIMENT:
+        print(f"\nChecking news on {len(top_picks)} picks...")
+        for pick in top_picks:
+            sym = pick['Symbol']
             ns, nl, nh = get_news_sentiment(sym)
             sentiment_map[sym] = (ns, nl, nh)
             print(f"  📰 {sym} news: {nl} (score {ns:+d})")
             time.sleep(0.3)
-        # Skip 15-min for momentum alerts — they're already in motion
-        if CHECK_15MIN and not pick.get('MomentumAlert'):
-            ok, reason = passes_15min_check(sym, pick['Entry'])
-            confirmed_map[sym] = (ok, reason)
-            print(f"  {'✅' if ok else '❌'} {sym} 15m: {reason}")
-            time.sleep(0.5)
 
     # ---- Step 7: Log picks ----
-    log_picks(top_picks, confirmed_map, sentiment_map)
+    log_picks(top_picks, sentiment_map)
 
     # ---- Step 8: Telegram alerts ----
-
-    # Market summary — include Claude's market read and confidence
     market_read  = claude_output.get("market_read", "") if claude_output else ""
     conf_label   = (
         f"{claude_output.get('overall_confidence','').upper()} — {claude_output.get('confidence_reason','')}"
@@ -1661,22 +1397,21 @@ def run_agent():
     claude_summary = f"\n🧠 {market_read}\n🎯 Confidence: {conf_label}" if market_read else ""
 
     send_telegram(
-        f"📊 US PRO SCAN — {datetime.now().strftime('%d %b %Y %H:%M')}\n"
+        f"📊 US MOMENTUM DIP SCAN — {datetime.now().strftime('%d %b %Y %H:%M')}\n"
         f"{'='*34}\n"
-        f"S&P    : Bullish (EMA50 + EMA200)\n"
+        f"S&P    : {regime_label}\n"
         f"VIX    : {vix_label}\n"
         f"Breadth: {breadth_label} ({breadth}%)\n"
         f"Hot    : {hot_str}\n"
         f"Portfolio: {pos_str} | Heat: {total_heat:.0%}\n"
-        f"Universe : {len(all_stocks)} stocks scanned\n"
-        f"Quality  : {len(regular_picks)} setups | Momentum: {len(momentum_only)} alerts"
+        f"Universe : {len(all_stocks)} stocks | Setups: {len(raw_hits)} | Already open: {skipped_open} | New: {len(top_picks)}\n"
+        f"Rules  : buy near close · stop {DIP_STOP_ATR}×ATR · sell on first close above 5-day SMA "
+        f"(max {DIP_MAX_HOLD} days) — the bot sends SELL alerts"
         f"{claude_summary}"
     )
 
-    # --- Quality picks (Claude-ranked) ---
     for pick in top_picks:
         sym = pick['Symbol']
-        rr  = round(pick['Reward$'] / pick['Risk$'], 1) if pick['Risk$'] > 0 else 0
 
         ns, nl, headlines = sentiment_map.get(sym, (0, "N/A", []))
         news_emoji = "📰✅" if ns >= 2 else "📰⚠️" if ns <= -2 else "📰"
@@ -1684,87 +1419,31 @@ def run_agent():
         if headlines:
             news_block += f"\n  → {headlines[0][:60]}"
 
-        ok15, reason15 = confirmed_map.get(sym, (True, "Not checked"))
-        conf_block = f"{'✅' if ok15 else '⚠️'} 15m    : {reason15}"
-
-        # Claude conviction block
         c_pick = claude_picks_map.get(sym, {})
         if c_pick:
             icon = {"high": "🟢", "medium": "🟡", "low": "🔴"}.get(c_pick.get("conviction",""), "⚪")
             claude_block = f"\n🧠 {icon} {c_pick.get('conviction','').upper()}: {c_pick.get('reason','')}"
         else:
             claude_block = ""
-
-        news_warn = "\n⚠️ NEGATIVE NEWS — review headlines before entering" if ns <= -2 else ""
-        ext_warn  = f"\n⚠️ {pick['Extension']}" if pick['Extension'].startswith("⚠️") else ""
+        caution_block = f"\n⚠️ Claude caution: {caution_map[sym]}" if sym in caution_map else ""
+        news_warn     = "\n⚠️ NEGATIVE NEWS — check why it dipped before entering" if ns <= -2 else ""
 
         msg = (
             f"{'='*34}\n"
-            f"🚀 {sym}  [{pick['Sector']}]\n"
-            f"Setup   : {pick['Setup']}\n"
-            f"Score   : {pick['Score']}"
+            f"🎯 {sym}  [{pick['Sector']}] — Momentum Dip\n"
+            f"6m Mom  : {pick['Mom6m']:+.1f}% (top {100 - pick['MomPct']}% of universe)\n"
+            f"Dip     : RSI2 {pick['RSI2']} | 3-day {pick['Move3d']} | RSI14 {pick['RSI']}\n"
+            f"Trend   : {pick['AboveSMA200']} above 200-day SMA"
             f"{claude_block}\n"
-            f"RVOL    : {pick['RVOL']}x | RSI: {pick['RSI']} | Move: {pick['Move3d']}\n"
-            f"Candle  : {pick['Candle']}\n"
-            f"MACD    : {pick['MACD']}\n"
-            f"OBV     : {pick['OBV']}\n"
-            f"ADX     : {pick['ADX']}\n"
-            f"Squeeze : {pick['Squeeze']}\n"
-            f"Extension: {pick['Extension']}\n"
             f"Sector Mom: 1D {pick['SectorDay']} | 1W {pick['SectorWeek']}\n"
             f"{news_block}\n"
-            f"{conf_block}\n"
             f"Entry   : ${pick['Entry']}\n"
-            f"Stop    : ${pick['Stop']}\n"
-            f"Target  : ${pick['Target']}\n"
+            f"Stop    : ${pick['Stop']} ({DIP_STOP_ATR}×ATR, ATR {pick['ATRpct']}%)\n"
+            f"Exit    : first close above 5-day SMA (now ${pick['Target']}) or day {DIP_MAX_HOLD}\n"
             f"Size    : {pick['Size']} shares\n"
             f"Invested: ${int(pick['Invested']):,} ({pick['AcctPct']}%)\n"
-            f"Risk    : ${int(pick['Risk$']):,}\n"
-            f"Reward  : ${int(pick['Reward$']):,}\n"
-            f"RR      : 1:{rr}"
-            f"{news_warn}"
-            f"{ext_warn}\n"
-            f"{'='*34}"
-        )
-        send_telegram(msg)
-        time.sleep(0.5)
-
-    # --- Claude skip list (if any) ---
-    skip_list = claude_output.get("skip", []) if claude_output else []
-    if skip_list:
-        skip_lines = "\n".join(f"  • {s['symbol']}: {s['reason']}" for s in skip_list)
-        send_telegram(f"⚠️ Claude flagged — lower priority:\n{skip_lines}")
-        time.sleep(0.3)
-
-    # --- Momentum-only alerts (clearly labeled higher-risk) ---
-    for pick in momentum_only[:3]:
-        sym = pick['Symbol']
-        rr  = round(pick['Reward$'] / pick['Risk$'], 1) if pick['Risk$'] > 0 else 0
-
-        ns, nl, headlines = sentiment_map.get(sym, (0, "N/A", []))
-        news_emoji = "📰✅" if ns >= 2 else "📰⚠️" if ns <= -2 else "📰"
-        news_block = f"{news_emoji} News: {nl}"
-        if headlines:
-            news_block += f"\n  → {headlines[0][:60]}"
-        news_warn = "\n⚠️ NEGATIVE NEWS — review before entering" if ns <= -2 else ""
-
-        msg = (
-            f"{'='*34}\n"
-            f"⚡ MOMENTUM ALERT — {sym}  [{pick['Sector']}]\n"
-            f"⚠️ Below quality threshold — HIGHER RISK / SMALLER SIZE\n"
-            f"{'='*34}\n"
-            f"Setup    : {pick['Setup']}\n"
-            f"Score    : {pick['Score']} (quality bar: {SCORE_THRESHOLD})\n"
-            f"RVOL     : {pick['RVOL']}x | RSI: {pick['RSI']} | Move: {pick['Move3d']}\n"
-            f"Extension: {pick['Extension']}\n"
-            f"Sector Mom: 1D {pick['SectorDay']} | 1W {pick['SectorWeek']}\n"
-            f"{news_block}\n"
-            f"Entry   : ${pick['Entry']}\n"
-            f"Stop    : ${pick['Stop']}\n"
-            f"Target  : ${pick['Target']}\n"
-            f"Size    : {pick['Size']} shares (consider ½ size)\n"
-            f"Risk    : ${int(pick['Risk$']):,}\n"
-            f"RR      : 1:{rr}"
+            f"Risk    : ${int(pick['Risk$']):,}"
+            f"{caution_block}"
             f"{news_warn}\n"
             f"{'='*34}"
         )
