@@ -469,3 +469,5 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-25,ABBV,XBI,Momentum Dip,76,263.36,250.55,264.65,17,4477,218,22,0.1,Positive,N/A,,,,,
 2026-09-25,GTLB,XLK,Momentum Dip,97,47.77,43.3,48.8,67,3201,300,69,0.23,Slightly Positive,N/A,,,,,
 2026-09-25,DOC,XLRE,Momentum Dip,79,19.95,19.08,20.4,225,4490,197,101,0.51,Slightly Positive,N/A,,,,,
+2026-09-25,S,XLK,Momentum Dip,92,22.38,19.44,23.62,101,2260,297,125,0.42,Positive,N/A,,,,,
+2026-09-25,ELV,XLV,Momentum Dip,86,396.09,369.11,400.93,11,4357,297,53,0.18,Slightly Positive,N/A,,,,,
