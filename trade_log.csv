@@ -466,7 +466,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-24,GL,XLF,Momentum Dip,72,167.32,158.84,170.78,26,4350,220,90,0.41,Positive,N/A,,,,,
 2026-09-25,DXCM,XLV,Momentum Dip,83,86.48,80.67,88.08,51,4410,296,81,0.27,Neutral,N/A,,,,,
 2026-09-25,PSX,XLE,Momentum Dip,81,250.54,228.02,256.28,13,3257,293,75,0.26,Negative,N/A,EXITED,2026-09-28,258.24,100.1,3.07
-2026-09-25,ABBV,XBI,Momentum Dip,76,263.36,250.55,264.65,17,4477,218,22,0.1,Positive,N/A,,,,,
+2026-09-25,ABBV,XBI,Momentum Dip,76,263.36,250.55,264.65,17,4477,218,22,0.1,Positive,N/A,EXITED,2026-09-28,266.06,45.9,1.03
 2026-09-25,GTLB,XLK,Momentum Dip,97,47.77,43.3,48.8,67,3201,300,69,0.23,Slightly Positive,N/A,,,,,
 2026-09-25,DOC,XLRE,Momentum Dip,79,19.95,19.08,20.4,225,4490,197,101,0.51,Slightly Positive,N/A,,,,,
 2026-09-25,S,XLK,Momentum Dip,92,22.38,19.44,23.62,101,2260,297,125,0.42,Positive,N/A,,,,,
@@ -476,3 +476,8 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-28,WDAY,XLK,Momentum Dip,92,183.64,167.04,188.94,18,3306,299,95,0.32,Positive,N/A,,,,,
 2026-09-28,IBKR,XLF,Momentum Dip,90,88.27,81.78,90.15,46,4060,299,87,0.29,Positive,N/A,,,,,
 2026-09-28,DUOL,XLC,Momentum Dip,90,136.68,118.72,144.33,16,2187,287,122,0.43,Positive,N/A,,,,,
+2026-09-28,HOOD,XLF,Momentum Dip,94,116.17,101.37,120.67,20,2323,296,90,0.3,Neutral,N/A,,,,,
+2026-09-28,CRM,XLK,Momentum Dip,85,229.24,208.03,234.47,14,3209,297,73,0.25,Slightly Positive,N/A,,,,,
+2026-09-28,NOW,XLK,Momentum Dip,83,131.37,117.51,136.51,21,2759,291,108,0.37,Positive,N/A,,,,,
+2026-09-28,BBY,XLY,Momentum Dip,81,88.47,80.9,91.12,39,3450,295,103,0.35,Positive,N/A,,,,,
+2026-09-28,NEM,XLB,Momentum Dip,77,116.08,105.39,121.93,28,3250,299,164,0.55,Slightly Positive,N/A,,,,,
