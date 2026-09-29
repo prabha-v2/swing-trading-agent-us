@@ -400,7 +400,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-14,XOM,XLE,EMA20 Pullback,27,165.58,158.74,182.68,27,4471,185,462,2.5,Slightly Positive,No,STOPPED,2026-09-21,158.74,-184.68,-4.13
 2026-09-14,MSFT,XLK,EMA20 Pullback,28,509.23,486.0,567.29,8,4074,186,465,2.5,Slightly Negative,Yes,,,,,
 2026-09-14,BWIN,OTHER,ATH Breakout,31,32.06,28.45,41.08,83,2661,300,749,2.5,Slightly Negative,No,,,,,
-2026-09-14,BRK-B,XLF,Squeeze Breakout,30,515.55,500.7,552.67,8,4124,119,297,2.5,Neutral,Yes,,,,,
+2026-09-14,BRK-B,XLF,Squeeze Breakout,30,515.55,500.7,552.67,8,4124,119,297,2.5,Neutral,Yes,STOPPED,2026-09-29,500.7,-118.8,-2.88
 2026-09-14,GRDN,OTHER,ATH Breakout,26,46.76,41.83,59.06,60,2805,295,738,2.5,Positive,Yes,STOPPED,2026-09-24,41.83,-295.8,-10.54
 2026-09-14,TEAM,OTHER,ATH Breakout,27,192.77,174.21,239.17,16,3084,297,742,2.5,Positive,Yes,STOPPED,2026-09-28,174.21,-296.96,-9.63
 2026-09-14,BDX,XLV,EMA20 Pullback,27,182.91,175.2,202.19,24,4390,185,463,2.5,Positive,Yes,,,,,
@@ -487,3 +487,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-28,AMZN,XLK,Momentum Dip,74,246.15,232.63,249.89,18,4431,243,67,0.28,Positive,N/A,,,,,
 2026-09-29,SJM,XLP,Momentum Dip,86,119.92,113.72,121.12,37,4437,229,45,0.2,Neutral,N/A,,,,,
 2026-09-29,STLD,XLB,Momentum Dip,83,228.28,210.64,232.36,17,3881,300,69,0.23,Neutral,N/A,,,,,
+2026-09-29,STT,XLF,Momentum Dip,92,177.41,167.17,179.9,25,4435,256,62,0.24,Neutral,N/A,,,,,
+2026-09-29,NUE,XLB,Momentum Dip,90,235.98,216.88,244.53,15,3540,286,128,0.45,Neutral,N/A,,,,,
+2026-09-29,FCX,XLB,Momentum Dip,85,70.51,63.9,71.89,45,3173,297,62,0.21,Neutral,N/A,,,,,
+2026-09-29,ALL,XLF,Momentum Dip,71,225.16,210.38,226.63,19,4278,281,28,0.1,Neutral,N/A,,,,,
