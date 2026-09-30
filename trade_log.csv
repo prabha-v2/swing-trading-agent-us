@@ -500,3 +500,5 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-30,SJM,XLP,Momentum Dip,86,119.58,113.43,120.71,37,4424,227,42,0.19,Slightly Positive,N/A,,,,,
 2026-09-30,GPC,XLY,Momentum Dip,80,125.78,118.29,127.94,35,4402,262,76,0.29,Positive,N/A,,,,,
 2026-09-30,TRV,XLF,Momentum Dip,77,358.94,342.66,362.15,12,4307,195,38,0.19,Slightly Positive,N/A,,,,,
+2026-09-30,PRU,XLF,Momentum Dip,73,114.05,108.3,116.68,39,4448,224,103,0.46,Positive,N/A,,,,,
+2026-09-30,PFG,XLF,Momentum Dip,73,112.89,106.57,114.08,39,4403,246,47,0.19,Neutral,N/A,,,,,
