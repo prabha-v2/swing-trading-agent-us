@@ -496,14 +496,14 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-30,UNH,XLV,Momentum Dip,90,368.13,348.71,374.5,12,4418,233,76,0.33,Neutral,N/A,,,,,
 2026-09-30,NTRS,XLF,Momentum Dip,84,171.7,161.7,173.88,26,4464,260,57,0.22,Positive,N/A,,,,,
 2026-09-30,V,XLF,Momentum Dip,79,361.31,347.35,366.06,12,4336,168,57,0.34,Positive,N/A,,,,,
-2026-09-30,BEN,XLF,Momentum Dip,90,32.14,30.22,32.61,140,4500,268,66,0.25,Positive,N/A,,,,,
+2026-09-30,BEN,XLF,Momentum Dip,90,32.14,30.22,32.61,140,4500,268,66,0.25,Positive,N/A,EXITED,2026-10-01,32.43,40.6,0.9
 2026-09-30,SJM,XLP,Momentum Dip,86,119.58,113.43,120.71,37,4424,227,42,0.19,Slightly Positive,N/A,,,,,
 2026-09-30,GPC,XLY,Momentum Dip,80,125.78,118.29,127.94,35,4402,262,76,0.29,Positive,N/A,,,,,
 2026-09-30,TRV,XLF,Momentum Dip,77,358.94,342.66,362.15,12,4307,195,38,0.19,Slightly Positive,N/A,,,,,
 2026-09-30,PRU,XLF,Momentum Dip,73,114.05,108.3,116.68,39,4448,224,103,0.46,Positive,N/A,,,,,
 2026-09-30,PFG,XLF,Momentum Dip,73,112.89,106.57,114.08,39,4403,246,47,0.19,Neutral,N/A,,,,,
 2026-09-30,ADP,XLI,Momentum Dip,87,261.19,248.45,262.31,17,4440,217,19,0.09,Slightly Positive,N/A,EXITED,2026-10-01,264.7,59.67,1.34
-2026-09-30,IVZ,XLF,Momentum Dip,84,30.2,27.95,30.53,133,4017,299,44,0.15,Slightly Negative,N/A,,,,,
+2026-09-30,IVZ,XLF,Momentum Dip,84,30.2,27.95,30.53,133,4017,299,44,0.15,Slightly Negative,N/A,EXITED,2026-10-01,30.49,38.57,0.96
 2026-09-30,GPN,XLF,Momentum Dip,84,81.86,76.28,84.34,53,4338,295,132,0.45,Positive,N/A,,,,,
 2026-09-30,SOLV,XLV,Momentum Dip,87,88.15,83.44,89.02,51,4496,240,44,0.18,Positive,N/A,,,,,
 2026-09-30,INCY,XBI,Momentum Dip,82,121.35,113.46,123.54,37,4490,292,81,0.28,Neutral,N/A,,,,,
@@ -523,3 +523,6 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-10-01,TMO,XLV,Momentum Dip,75,662.97,624.25,674.25,6,3978,232,68,0.29,Positive,N/A,,,,,
 2026-10-01,PM,XLP,Momentum Dip,72,187.79,177.13,191.35,23,4319,245,82,0.33,Positive,N/A,,,,,
 2026-10-01,IFF,XLB,Momentum Dip,71,82.77,78.57,84.58,54,4470,227,98,0.43,Positive,N/A,,,,,
+2026-10-01,SWKS,SMH,Momentum Dip,81,84.61,71.96,87.01,23,1946,291,55,0.19,Neutral,N/A,,,,,
+2026-10-01,GL,XLF,Momentum Dip,78,164.83,157.15,166.06,27,4450,207,33,0.16,Positive,N/A,,,,,
+2026-10-01,LH,XLV,Momentum Dip,73,306.68,288.27,308.56,14,4294,258,26,0.1,Positive,N/A,,,,,
