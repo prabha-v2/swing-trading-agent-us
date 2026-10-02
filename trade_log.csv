@@ -530,3 +530,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-10-01,BDX,XLV,Momentum Dip,72,178.07,168.6,181.34,25,4452,237,82,0.35,Neutral,N/A,,,,,
 2026-10-02,WST,XLV,Momentum Dip,86,363.42,342.59,370.29,12,4361,250,82,0.33,Neutral,N/A,,,,,
 2026-10-02,BIIB,XBI,Momentum Dip,78,221.43,208.8,225.18,20,4429,253,75,0.3,Neutral,N/A,,,,,
+2026-10-02,WAT,XLV,Momentum Dip,86,425.12,396.45,435.25,10,4251,287,101,0.35,Neutral,N/A,,,,,
