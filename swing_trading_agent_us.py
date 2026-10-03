@@ -873,6 +873,132 @@ def print_trade_stats():
         print(f"\n📈 Trade History: {total} closed | Win rate: {win_r:.0f}% | Expired: {expired}")
 
 # =========================================
+# SELL ALERTS FOR HELD POSITIONS
+# =========================================
+
+SELL_ALERTS_FILE = "sell_alerts.csv"
+SELL_ALERT_FIELDS = ['symbol', 'entry_price', 'reason', 'alert_date']
+
+def check_held_positions():
+    """
+    Send a Telegram SELL alert when a stock in positions.csv hits its stop, its target,
+    or has been held MAX_HOLD_DAYS. Stop/target/buy date come from optional positions.csv
+    columns (stop, target, date), else from the stock's latest alert in trade_log.csv when
+    its entry is within 5% of the position's, else are estimated (buy date = the first run
+    that saw the position). Each alert is sent once (recorded in sell_alerts.csv, which also
+    holds the SEEN dates) — remove the row from positions.csv after selling.
+    """
+    pos_file = Path(PORTFOLIO_FILE)
+    if not pos_file.exists():
+        return
+    try:
+        with open(pos_file, newline='') as f:
+            held = [r for r in csv.DictReader(f) if r.get('symbol', '').strip()]
+    except Exception as e:
+        print(f"⚠️ Could not read {PORTFOLIO_FILE}: {e}")
+        return
+
+    # Latest alert per symbol from the trade log
+    signals = {}
+    if Path(TRADE_LOG_FILE).exists():
+        with open(TRADE_LOG_FILE, newline='') as f:
+            for r in csv.DictReader(f):
+                sym = r.get('symbol', '')
+                if sym and r.get('date', '') >= signals.get(sym, {}).get('date', ''):
+                    signals[sym] = r
+
+    sent = []
+    if Path(SELL_ALERTS_FILE).exists():
+        with open(SELL_ALERTS_FILE, newline='') as f:
+            sent = list(csv.DictReader(f))
+    sent_keys = {(s['symbol'], s['entry_price'], s['reason']) for s in sent}
+    seen      = {(s['symbol'], s['entry_price']): s['alert_date'] for s in sent if s['reason'] == 'SEEN'}
+
+    today     = datetime.now()
+    held_keys = set()
+    new_sent  = []
+    for row in held:
+        sym   = row['symbol'].strip().upper()
+        entry = float(row.get('entry_price') or 0)
+        if entry <= 0:
+            continue
+        key = (sym, row['entry_price'].strip())
+        held_keys.add(key)
+        if key not in seen:
+            seen[key] = today.strftime('%Y-%m-%d')
+            new_sent.append({'symbol': sym, 'entry_price': key[1], 'reason': 'SEEN', 'alert_date': seen[key]})
+        sig = signals.get(sym, {})
+        if abs(float(sig.get('entry') or 0) - entry) > entry * 0.05:
+            sig = {}   # that alert's prices don't match this buy — don't borrow its stop/target
+        stop   = float(row.get('stop') or sig.get('stop') or 0)
+        target = float(row.get('target') or sig.get('target') or 0)
+        bought = (row.get('date') or sig.get('date') or seen[key]).strip()
+        # Momentum Dip buys (Sep–Oct 2026) were meant to be held at most 10 trading days
+        max_hold = 14 if sig.get('setup') == 'Momentum Dip' and not row.get('date') else MAX_HOLD_DAYS
+
+        try:
+            # Start a month before the buy: room for the ATR estimate, and never an empty range
+            df = yf.download(sym, start=(pd.Timestamp(bought) - timedelta(days=30)).strftime('%Y-%m-%d'),
+                             interval="1d", progress=False)
+            df = df.dropna()
+            df.columns = df.columns.get_level_values(0)
+        except Exception as e:
+            print(f"  ⚠️ {sym} position check failed: {e}")
+            continue
+        if df.empty:
+            continue
+
+        estimated = ""
+        if stop <= 0 or target <= 0:
+            # No stop/target known — use the scanner's rules from today's ATR
+            atr    = float((df['High'] - df['Low']).tail(14).mean())
+            stop   = stop or round(entry - MIN_ATR_STOP * atr, 2)
+            target = target or round(entry + RR_RATIO * (entry - stop), 2)
+            estimated = " (estimated)"
+
+        # Bars after the buy day; when only the first-seen date is known, include that day too
+        idx   = df.index.normalize()
+        after = df[idx >= pd.Timestamp(bought)] if bought == seen[key] else df[idx > pd.Timestamp(bought)]
+        price = float(df['Close'].iloc[-1])
+        days  = (today - pd.Timestamp(bought)).days
+
+        reason = ""
+        if not after.empty and float(after['Low'].min()) <= stop:
+            reason, why = "STOP", f"Stop ${stop:.2f}{estimated} was hit"
+        elif not after.empty and float(after['High'].max()) >= target:
+            reason, why = "TARGET", f"Target ${target:.2f}{estimated} was hit"
+        elif days >= max_hold:
+            reason, why = "TIME", f"Held {days} days (max {max_hold}) without stop or target"
+
+        pnl_pct = (price - entry) / entry * 100
+        print(f"  {'🔔' if reason else '🔄'} {sym}: ${price:.2f} ({pnl_pct:+.1f}%) | stop ${stop:.2f} | target ${target:.2f}"
+              f"{' | ' + reason if reason else ''}")
+        if not reason or (sym, row['entry_price'].strip(), reason) in sent_keys:
+            continue
+
+        shares = float(row.get('shares') or 0)
+        emoji  = {"STOP": "🛑", "TARGET": "🎯", "TIME": "⏰"}[reason]
+        send_telegram(
+            f"{emoji} SELL {sym} — {reason}\n"
+            f"{why}\n"
+            f"Price   : ${price:.2f}\n"
+            f"Entry   : ${entry:.2f}\n"
+            f"P&L     : {pnl_pct:+.1f}% (${(price - entry) * shares:+,.0f})\n"
+            f"After selling, remove {sym} from positions.csv"
+        )
+        new_sent.append({'symbol': sym, 'entry_price': row['entry_price'].strip(),
+                         'reason': reason, 'alert_date': today.strftime('%Y-%m-%d')})
+        time.sleep(0.3)
+
+    # Keep alerts only for positions still held, so a later re-buy gets fresh alerts
+    keep = [s for s in sent if (s['symbol'], s['entry_price']) in held_keys] + new_sent
+    if keep != sent:
+        with open(SELL_ALERTS_FILE, 'w', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=SELL_ALERT_FIELDS)
+            writer.writeheader()
+            writer.writerows(keep)
+
+# =========================================
 # MAIN TECHNICAL SCANNER
 # =========================================
 
@@ -1461,6 +1587,10 @@ def run_agent():
     print("\nChecking open trade outcomes...")
     update_trade_outcomes()
     print_trade_stats()
+
+    # ---- Step 0b: SELL alerts for stocks you hold (before the market gates can return early) ----
+    print("\nChecking held positions...")
+    check_held_positions()
 
     # ---- Step 1: Market regime filters ----
     if not market_is_bullish():

@@ -33,3 +33,26 @@ Go to Actions tab → click any run → click "run-agent" job to see full output
   - That's ~7,200 min/month — EXCEEDS free private repo limit
   - Solution: make the repo PUBLIC (your code is visible but secrets are protected)
   - Or: reduce frequency to every 1 hour to stay within free limits
+
+## Tracking your trades (positions.csv)
+When you buy a stock from an alert, add a row to `positions.csv` (edit it on GitHub):
+
+```
+symbol,shares,entry_price,sector
+NVDA,2.5,224.55,SMH
+```
+
+Use the sector shown in the alert. Fractional shares are fine. Delete the row after you sell.
+
+Every run checks each held stock and sends one Telegram SELL alert when:
+- 🛑 the stop is hit,
+- 🎯 the target is hit, or
+- ⏰ it has been held 30 days without hitting either.
+
+Stop, target and buy date are taken from the stock's alert in `trade_log.csv` (if its entry
+price is within 5% of yours). To set your own, add optional `stop`, `target` and `date`
+(YYYY-MM-DD) columns to the header and fill them in; blank cells use the defaults.
+`sell_alerts.csv` is written by the agent to avoid repeating alerts — don't edit it.
+
+Held stocks are also skipped as new buy alerts and count toward the 60% total / 20% per
+sector limits (based on `ACCOUNT_SIZE` in the agent).

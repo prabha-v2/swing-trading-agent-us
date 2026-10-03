@@ -5,8 +5,8 @@ on:
   # not GitHub's `schedule:`, which started runs 2-5 hours late. Mon-Fri, New York time
   # (so US daylight-saving changes are automatic):
   #   09:45, 11:45, 13:45  intraday scans      (IST ~7:15 PM, 9:15 PM, 11:15 PM during US DST)
-  #   15:30                near-close scan     (IST ~1:00 AM) — main Momentum Dip entry scan
-  #   16:15                after-close scan    (IST ~1:45 AM) — exits/SELL alerts at the close
+  #   15:30                near-close scan     (IST ~1:00 AM)
+  #   16:15                after-close scan    (IST ~1:45 AM) — SELL alerts on the closing price
   workflow_dispatch:   # also usable manually from the Actions tab
 
 # Allow the workflow to push trade_log.csv back to the repo
@@ -54,12 +54,13 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python swing_trading_agent_us.py
 
-      # Commit trade_log.csv (and updated positions.csv if changed) back to repo
+      # Commit trade_log.csv, sell_alerts.csv (and positions.csv if changed) back to repo
       - name: Commit trade log
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add trade_log.csv positions.csv 2>/dev/null || true
+          # Add each file separately: one missing path would make a combined `git add` fail
+          for f in trade_log.csv positions.csv sell_alerts.csv; do [ ! -f "$f" ] || git add "$f"; done
           git diff --staged --quiet || git commit -m "📊 Trade log $(date +'%Y-%m-%d %H:%M UTC')"
           # Pull first: the user edits positions.csv from GitHub, and a commit made while
           # this run was scanning would otherwise reject the push and lose this run's log.
