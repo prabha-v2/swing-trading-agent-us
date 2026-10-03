@@ -30,8 +30,9 @@ from datetime import datetime, timedelta
 # =========================================
 
 SCORE_THRESHOLD  = 22
-RR_RATIO         = 2.5
+RR_RATIO         = 2.0
 MAX_ATR_STOP     = 3.0
+MIN_ATR_STOP     = 2.5     # stop never closer than this many ATRs (mirrors main agent)
 MAX_HOLD_DAYS    = 20     # exit after 20 bars if neither stop nor target hit
 MIN_BARS         = 300    # need enough history to compute all indicators
 
@@ -232,7 +233,7 @@ def simulate_trade(df, signal_idx, rr_ratio=RR_RATIO):
     """
     Simulate a trade triggered at signal_idx.
     Entry = next bar's open (no look-ahead on the signal bar itself).
-    Stop  = entry - MAX_ATR_STOP * ATR
+    Stop  = max(10-bar low, entry - MAX_ATR_STOP * ATR), but at least MIN_ATR_STOP * ATR below entry
     Target = entry + risk * RR_RATIO
     Returns a result dict or None.
     """
@@ -248,7 +249,7 @@ def simulate_trade(df, signal_idx, rr_ratio=RR_RATIO):
     # Same stop logic as live agent
     ten_bar_low = float(df['Low'].iloc[max(signal_idx-10, 0):signal_idx+1].min())
     atr_stop    = entry - (MAX_ATR_STOP * atr)
-    stop        = max(ten_bar_low, atr_stop)
+    stop        = min(max(ten_bar_low, atr_stop), entry - MIN_ATR_STOP * atr)
     risk        = entry - stop
 
     if risk <= 0 or risk > entry * 0.12:
@@ -336,7 +337,7 @@ def backtest_symbol(symbol, spy_df, lookback_days=730, threshold=SCORE_THRESHOLD
 
     while i < len(df_full) - MAX_HOLD_DAYS:
         # Need matching SPY slice up to this date
-        spy_slice = spy_df.iloc[:min(i + 1, len(spy_df))]
+        spy_slice = spy_df.loc[:df_full.index[i]]   # align by date — SPY and the stock start on different days
 
         score, setup = score_bar(df_full, i, spy_slice)
 

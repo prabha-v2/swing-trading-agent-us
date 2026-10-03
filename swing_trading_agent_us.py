@@ -15,8 +15,9 @@ from pathlib import Path
 
 ACCOUNT_SIZE      = 30000
 RISK_PER_TRADE    = 0.01
-RR_RATIO          = 2.5
+RR_RATIO          = 2.0           # backtest 2014-26: 2R wins more often than 2.5R for nearly the same profit
 MAX_ATR_STOP      = 3.0
+MIN_ATR_STOP      = 2.5           # stop never closer than 2.5x ATR — tighter stops got shaken out by normal noise
 MAX_POSITION_PCT  = 0.15          # max 15% of account per trade
 SCORE_THRESHOLD   = 22
 TOP_PICKS         = 5
@@ -851,12 +852,15 @@ def print_trade_stats():
     except Exception:
         return
 
-    closed  = [r for r in rows if r.get('outcome', '').strip() in ('TARGET HIT', 'STOPPED')]
-    expired = sum(1 for r in rows if r.get('outcome', '').strip() == 'EXPIRED')
+    # A win is any signal that closed in profit — about a third of trades expire in profit
+    # without touching the target, so counting only TARGET HIT understates the hit rate
+    closed  = [r for r in rows if r.get('outcome', '').strip() in ('TARGET HIT', 'STOPPED', 'EXPIRED')
+               and r.get('setup') != 'Momentum Dip']
+    expired = sum(1 for r in closed if r['outcome'].strip() == 'EXPIRED')
     if not closed:
         return
 
-    wins  = [r for r in closed if r['outcome'] == 'TARGET HIT']
+    wins  = [r for r in closed if float(r.get('pnl_pct') or 0) > 0]
     total = len(closed)
     win_r = len(wins) / total * 100
 
@@ -1091,7 +1095,7 @@ def check_stock(symbol, df, spy_df, hot_sectors, sector_perf, active_sector_map,
         atr            = float(latest['ATR'])
         ten_bar_low    = float(df['Low'].iloc[-10:].min())
         atr_stop       = entry - (MAX_ATR_STOP * atr)
-        stop           = max(ten_bar_low, atr_stop)
+        stop           = min(max(ten_bar_low, atr_stop), entry - MIN_ATR_STOP * atr)
         risk           = entry - stop
 
         if risk <= 0 or risk > entry * 0.12:
@@ -1250,7 +1254,9 @@ def get_recent_performance(n_days: int = 60) -> dict:
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
         cutoff  = datetime.now() - timedelta(days=n_days)
         recent  = df[df["date"] >= cutoff].copy()
-        closed  = recent[recent["outcome"].isin(["TARGET HIT", "STOPPED"])].copy()
+        closed  = recent[recent["outcome"].isin(["TARGET HIT", "STOPPED", "EXPIRED"])].copy()
+        # A win is any signal that closed in profit, including ones that expired above entry
+        closed["won"] = pd.to_numeric(closed["pnl_pct"], errors="coerce").fillna(0) > 0
         # Momentum Dip signals (Sep–Oct 2026) used a different exit, so they don't reflect this scanner
         closed  = closed[closed["setup"] != "Momentum Dip"]
         # Older logs re-logged the same open signal each run; those copies all close on
@@ -1259,7 +1265,7 @@ def get_recent_performance(n_days: int = 60) -> dict:
 
         def stats(rows):
             total = len(rows)
-            wins  = int((rows["outcome"] == "TARGET HIT").sum())
+            wins  = int(rows["won"].sum())
             return {
                 "trades":   total,
                 "wins":     wins,
@@ -1271,8 +1277,8 @@ def get_recent_performance(n_days: int = 60) -> dict:
 
         last5  = closed.sort_values("outcome_date").tail(5)
         streak = " → ".join(
-            "✅W" if r == "TARGET HIT" else "❌L"
-            for r in last5["outcome"]
+            "✅W" if w else "❌L"
+            for w in last5["won"]
         ) if not last5.empty else "No closed trades yet"
 
         return {
@@ -1762,7 +1768,8 @@ def run_agent():
             f"Invested: ${int(pick['Invested']):,} ({pick['AcctPct']}%)\n"
             f"Risk    : ${int(pick['Risk$']):,}\n"
             f"Reward  : ${int(pick['Reward$']):,}\n"
-            f"RR      : 1:{rr}"
+            f"RR      : 1:{rr}\n"
+            f"Max hold: {MAX_HOLD_DAYS} days — sell if neither stop nor target hit"
             f"{caution}"
             f"{news_warn}"
             f"{ext_warn}\n"
@@ -1807,7 +1814,8 @@ def run_agent():
             f"Target  : ${pick['Target']}\n"
             f"Size    : {pick['Size']} shares (consider ½ size)\n"
             f"Risk    : ${int(pick['Risk$']):,}\n"
-            f"RR      : 1:{rr}"
+            f"RR      : 1:{rr}\n"
+            f"Max hold: {MAX_HOLD_DAYS} days — sell if neither stop nor target hit"
             f"{news_warn}\n"
             f"{'='*34}"
         )
