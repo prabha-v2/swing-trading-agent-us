@@ -605,7 +605,7 @@ def get_portfolio_positions():
                     continue
                 try:
                     positions[sym] = {
-                        'shares':  int(float(row.get('shares', 0))),
+                        'shares':  float(row.get('shares', 0)),   # INDmoney allows fractional shares
                         'entry':   float(row.get('entry_price', 0)),
                         'sector':  row.get('sector', 'OTHER').strip(),
                     }
