@@ -521,8 +521,8 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-10-01,BNY,XLF,Momentum Dip,85,142.29,133.97,146.5,31,4411,258,131,0.51,Positive,N/A,,,,,
 2026-10-01,VRTX,XBI,Momentum Dip,76,510.33,482.38,522.75,8,4083,224,99,0.44,Neutral,N/A,,,,,
 2026-10-01,TMO,XLV,Momentum Dip,75,662.97,624.25,674.25,6,3978,232,68,0.29,Positive,N/A,TARGET HIT,2026-10-05,674.25,67.68,1.7
-2026-10-01,PM,XLP,Momentum Dip,72,187.79,177.13,191.35,23,4319,245,82,0.33,Positive,N/A,,,,,
-2026-10-01,IFF,XLB,Momentum Dip,71,82.77,78.57,84.58,54,4470,227,98,0.43,Positive,N/A,,,,,
+2026-10-01,PM,XLP,Momentum Dip,72,187.79,177.13,191.35,23,4319,245,82,0.33,Positive,N/A,TARGET HIT,2026-10-06,191.35,81.88,1.9
+2026-10-01,IFF,XLB,Momentum Dip,71,82.77,78.57,84.58,54,4470,227,98,0.43,Positive,N/A,TARGET HIT,2026-10-06,84.58,97.74,2.19
 2026-10-01,SWKS,SMH,Momentum Dip,81,84.61,71.96,87.01,23,1946,291,55,0.19,Neutral,N/A,,,,,
 2026-10-01,GL,XLF,Momentum Dip,78,164.83,157.15,166.06,27,4450,207,33,0.16,Positive,N/A,EXITED,2026-10-02,166.74,51.57,1.16
 2026-10-01,LH,XLV,Momentum Dip,73,306.68,288.27,308.56,14,4294,258,26,0.1,Positive,N/A,EXITED,2026-10-02,308.49,25.34,0.59
@@ -535,3 +535,5 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-10-05,CRL,XLV,ATH Breakout,31,304.8,276.64,361.11,10,3048,282,563,2.0,Neutral,Yes,,,,,
 2026-10-05,CRWD,XLK,ATH Breakout,26,272.2,244.7,327.2,10,2722,275,550,2.0,Neutral,Yes,,,,,
 2026-10-06,FRSH,OTHER,Squeeze Breakout,27,13.97,12.4,17.12,190,2655,299,597,2.0,Neutral,Yes,,,,,
+2026-10-06,AMD,SMH,ATH Breakout,28,655.64,592.33,782.25,4,2623,253,506,2.0,Neutral,No,,,,,
+2026-10-06,PWR,XLI,Trend Continuation,26,717.09,653.66,843.95,4,2868,254,507,2.0,Neutral,Yes,,,,,
