@@ -540,3 +540,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-10-07,HUM,XLV,EMA20 Pullback,23,409.13,372.08,483.23,8,3273,296,593,2.0,Neutral,Yes,,,,,
 2026-10-07,LLY,XBI,EMA20 Pullback,28,1201.51,1116.36,1371.81,3,3605,255,511,2.0,Neutral,Yes,,,,,
 2026-10-07,PFE,XLV,EMA20 Pullback,25,28.01,26.72,30.6,160,4482,207,413,2.0,Neutral,Yes,,,,,
+2026-10-07,VLO,XLE,ATH Breakout,27,424.1,374.03,524.25,5,2121,250,501,2.0,Neutral,Yes,,,,,
