@@ -545,3 +545,5 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-10-08,HAE,OTHER,ATH Breakout,29,118.5,107.83,139.86,28,3318,299,598,2.0,Neutral,Yes,,,,,
 2026-10-08,FRO,OTHER,ATH Breakout,28,55.46,49.49,67.4,50,2773,299,597,2.0,Neutral,Yes,,,,,
 2026-10-08,MPC,XLE,ATH Breakout,28,454.71,404.06,556.02,5,2274,253,507,2.0,Neutral,Yes,,,,,
+2026-10-08,MO,XLP,Squeeze Breakout,29,71.36,67.48,79.13,63,4496,245,489,2.0,Neutral,Yes,,,,,
+2026-10-08,SSL,OTHER,ATH Breakout,26,15.11,13.83,17.68,233,3521,299,598,2.0,Neutral,Yes,,,,,
