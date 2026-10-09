@@ -551,3 +551,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-10-09,CVX,XLE,EMA20 Pullback,23,212.68,201.96,234.12,21,4466,225,450,2.0,Neutral,Yes,,,,,
 2026-10-09,TAL,OTHER,ATH Breakout,30,13.07,11.99,15.23,278,3633,300,599,2.0,Neutral,Yes,,,,,
 2026-10-09,TEVA,OTHER,Squeeze Breakout,33,41.67,38.25,48.5,87,3625,297,594,2.0,Neutral,Yes,,,,,
+2026-10-09,PYPL,XLF,EMA20 Pullback,26,55.31,51.55,62.84,79,4370,297,594,2.0,Neutral,No,,,,,
