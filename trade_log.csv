@@ -497,7 +497,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-30,NTRS,XLF,Momentum Dip,84,171.7,161.7,173.88,26,4464,260,57,0.22,Positive,N/A,EXITED,2026-10-02,171.67,-0.78,-0.02
 2026-09-30,V,XLF,Momentum Dip,79,361.31,347.35,366.06,12,4336,168,57,0.34,Positive,N/A,TARGET HIT,2026-10-05,366.06,57.0,1.31
 2026-09-30,BEN,XLF,Momentum Dip,90,32.14,30.22,32.61,140,4500,268,66,0.25,Positive,N/A,EXITED,2026-10-01,32.43,40.6,0.9
-2026-09-30,SJM,XLP,Momentum Dip,86,119.58,113.43,120.71,37,4424,227,42,0.19,Slightly Positive,N/A,,,,,
+2026-09-30,SJM,XLP,Momentum Dip,86,119.58,113.43,120.71,37,4424,227,42,0.19,Slightly Positive,N/A,TARGET HIT,2026-10-12,120.71,41.81,0.94
 2026-09-30,GPC,XLY,Momentum Dip,80,125.78,118.29,127.94,35,4402,262,76,0.29,Positive,N/A,EXITED,2026-10-02,126.81,36.05,0.82
 2026-09-30,TRV,XLF,Momentum Dip,77,358.94,342.66,362.15,12,4307,195,38,0.19,Slightly Positive,N/A,EXITED,2026-10-01,361.64,32.4,0.75
 2026-09-30,PRU,XLF,Momentum Dip,73,114.05,108.3,116.68,39,4448,224,103,0.46,Positive,N/A,,,,,
@@ -553,3 +553,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-10-09,TEVA,OTHER,Squeeze Breakout,33,41.67,38.25,48.5,87,3625,297,594,2.0,Neutral,Yes,,,,,
 2026-10-09,PYPL,XLF,EMA20 Pullback,26,55.31,51.55,62.84,79,4370,297,594,2.0,Neutral,No,,,,,
 2026-10-12,XOM,XLE,EMA20 Pullback,31,171.85,162.08,191.38,26,4468,254,508,2.0,Neutral,Yes,,,,,
+2026-10-12,MANH,OTHER,Squeeze Breakout,29,216.12,197.69,252.98,16,3458,295,590,2.0,Neutral,No,,,,,
