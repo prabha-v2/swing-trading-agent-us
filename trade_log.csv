@@ -555,3 +555,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-10-12,XOM,XLE,EMA20 Pullback,31,171.85,162.08,191.38,26,4468,254,508,2.0,Neutral,Yes,,,,,
 2026-10-12,MANH,OTHER,Squeeze Breakout,29,216.12,197.69,252.98,16,3458,295,590,2.0,Neutral,No,,,,,
 2026-10-13,GOOGL,XLC,EMA20 Pullback,25,356.83,335.51,399.47,12,4282,256,512,2.0,Neutral,Yes,,,,,
+2026-10-13,BAX,XLV,Squeeze Breakout,29,24.85,23.24,28.08,181,4499,292,585,2.0,Neutral,Yes,,,,,
