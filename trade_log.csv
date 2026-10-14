@@ -501,7 +501,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-09-30,GPC,XLY,Momentum Dip,80,125.78,118.29,127.94,35,4402,262,76,0.29,Positive,N/A,EXITED,2026-10-02,126.81,36.05,0.82
 2026-09-30,TRV,XLF,Momentum Dip,77,358.94,342.66,362.15,12,4307,195,38,0.19,Slightly Positive,N/A,EXITED,2026-10-01,361.64,32.4,0.75
 2026-09-30,PRU,XLF,Momentum Dip,73,114.05,108.3,116.68,39,4448,224,103,0.46,Positive,N/A,,,,,
-2026-09-30,PFG,XLF,Momentum Dip,73,112.89,106.57,114.08,39,4403,246,47,0.19,Neutral,N/A,,,,,
+2026-09-30,PFG,XLF,Momentum Dip,73,112.89,106.57,114.08,39,4403,246,47,0.19,Neutral,N/A,STOPPED,2026-10-14,106.57,-246.48,-5.6
 2026-09-30,ADP,XLI,Momentum Dip,87,261.19,248.45,262.31,17,4440,217,19,0.09,Slightly Positive,N/A,EXITED,2026-10-01,264.7,59.67,1.34
 2026-09-30,IVZ,XLF,Momentum Dip,84,30.2,27.95,30.53,133,4017,299,44,0.15,Slightly Negative,N/A,EXITED,2026-10-01,30.49,38.57,0.96
 2026-09-30,GPN,XLF,Momentum Dip,84,81.86,76.28,84.34,53,4338,295,132,0.45,Positive,N/A,,,,,
@@ -556,3 +556,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-10-12,MANH,OTHER,Squeeze Breakout,29,216.12,197.69,252.98,16,3458,295,590,2.0,Neutral,No,,,,,
 2026-10-13,GOOGL,XLC,EMA20 Pullback,25,356.83,335.51,399.47,12,4282,256,512,2.0,Neutral,Yes,,,,,
 2026-10-13,BAX,XLV,Squeeze Breakout,29,24.85,23.24,28.08,181,4499,292,585,2.0,Neutral,Yes,,,,,
+2026-10-14,COST,XLP,EMA20 Pullback,27,973.42,924.05,1072.16,4,3894,197,395,2.01,Neutral,Yes,,,,,
