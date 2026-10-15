@@ -559,3 +559,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-10-14,COST,XLP,EMA20 Pullback,27,973.42,924.05,1072.16,4,3894,197,395,2.01,Neutral,Yes,,,,,
 2026-10-15,BRK-B,XLF,EMA20 Pullback,27,531.6,515.38,564.03,8,4253,130,259,1.99,Neutral,Yes,,,,,
 2026-10-15,IFF,XLB,ATH Breakout,27,91.31,85.77,102.38,49,4474,271,543,2.0,Neutral,Yes,,,,,
+2026-10-15,MSFT,XLK,EMA20 Pullback,25,537.15,509.09,593.26,8,4297,224,449,2.0,Neutral,Yes,,,,,
