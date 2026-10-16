@@ -565,3 +565,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-10-16,APA,XLE,ATH Breakout,23,47.88,43.48,56.67,68,3256,299,598,2.0,Neutral,Yes,,,,,
 2026-10-16,CRM,XLK,EMA20 Pullback,25,246.8,223.23,293.94,12,2962,283,566,2.0,Neutral,Yes,,,,,
 2026-10-16,AMCR,XLB,Squeeze Breakout,28,44.27,41.78,49.25,101,4471,252,503,2.0,Neutral,Yes,,,,,
+2026-10-16,APLE,OTHER,ATH Breakout,29,17.38,16.36,19.42,258,4484,264,527,2.0,Neutral,Yes,,,,,
