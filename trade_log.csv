@@ -568,3 +568,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-10-16,APLE,OTHER,ATH Breakout,29,17.38,16.36,19.42,258,4484,264,527,2.0,Neutral,Yes,,,,,
 2026-10-16,AAPL,XLK,EMA20 Pullback,27,344.9,328.45,377.8,13,4484,214,428,2.0,Neutral,Yes,,,,,
 2026-10-19,AIG,XLF,Trend Continuation,26,81.1,77.2,88.91,55,4460,215,429,2.0,Neutral,Yes,,,,,
+2026-10-19,EL,XLP,Trend Continuation,27,105.83,95.82,125.85,29,3069,290,581,2.0,Neutral,Yes,,,,,
