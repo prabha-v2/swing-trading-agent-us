@@ -574,3 +574,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-10-20,EXPE,XLY,Trend Continuation,29,299.56,268.07,362.53,9,2696,283,567,2.0,Neutral,Yes,,,,,
 2026-10-20,EXPE,XLY,Trend Continuation,29,299.56,268.07,362.53,9,2696,283,567,2.0,Neutral,Yes,,,,,
 2026-10-20,LYFT,XLY,Trend Continuation,29,17.3,15.67,20.55,184,3183,299,599,2.0,Neutral,Yes,,,,,
+2026-10-20,KVUE,XLP,ATH Breakout,30,19.22,18.25,21.14,234,4496,225,450,2.0,Neutral,Yes,,,,,
