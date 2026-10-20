@@ -543,7 +543,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-10-07,VLO,XLE,ATH Breakout,27,424.1,374.03,524.25,5,2121,250,501,2.0,Neutral,Yes,,,,,
 2026-10-08,PM,XLP,Squeeze Breakout,33,197.92,185.36,223.04,22,4354,276,553,2.0,Neutral,Yes,,,,,
 2026-10-08,HAE,OTHER,ATH Breakout,29,118.5,107.83,139.86,28,3318,299,598,2.0,Neutral,Yes,,,,,
-2026-10-08,FRO,OTHER,ATH Breakout,28,55.46,49.49,67.4,50,2773,299,597,2.0,Neutral,Yes,,,,,
+2026-10-08,FRO,OTHER,ATH Breakout,28,55.46,49.49,67.4,50,2773,299,597,2.0,Neutral,Yes,STOPPED,2026-10-20,49.49,-298.5,-10.76
 2026-10-08,MPC,XLE,ATH Breakout,28,454.71,404.06,556.02,5,2274,253,507,2.0,Neutral,Yes,,,,,
 2026-10-08,MO,XLP,Squeeze Breakout,29,71.36,67.48,79.13,63,4496,245,489,2.0,Neutral,Yes,,,,,
 2026-10-08,SSL,OTHER,ATH Breakout,26,15.11,13.83,17.68,233,3521,299,598,2.0,Neutral,Yes,,,,,
@@ -571,3 +571,6 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-10-19,EL,XLP,Trend Continuation,27,105.83,95.82,125.85,29,3069,290,581,2.0,Neutral,Yes,,,,,
 2026-10-19,CDW,XLK,ATH Breakout,24,153.06,137.68,183.82,19,2908,292,584,2.0,Neutral,Yes,,,,,
 2026-10-19,CAH,XLV,ATH Breakout,27,252.65,233.75,290.44,15,3790,283,567,2.0,Neutral,Yes,,,,,
+2026-10-20,EXPE,XLY,Trend Continuation,29,299.56,268.07,362.53,9,2696,283,567,2.0,Neutral,Yes,,,,,
+2026-10-20,EXPE,XLY,Trend Continuation,29,299.56,268.07,362.53,9,2696,283,567,2.0,Neutral,Yes,,,,,
+2026-10-20,LYFT,XLY,Trend Continuation,29,17.3,15.67,20.55,184,3183,299,599,2.0,Neutral,Yes,,,,,
