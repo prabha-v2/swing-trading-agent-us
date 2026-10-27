@@ -587,3 +587,6 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-10-27,ACN,XLK,Trend Continuation,22,241.25,212.71,298.34,10,2413,285,571,2.0,Neutral,No,,,,,
 2026-10-27,A,XLV,EMA20 Pullback,26,176.28,165.07,198.69,25,4407,280,560,2.0,Neutral,Yes,,,,,
 2026-10-27,SLB,XLE,Squeeze Breakout,26,53.73,49.23,62.73,66,3546,297,594,2.0,Neutral,Yes,,,,,
+2026-10-27,HPQ,XLK,Trend Continuation,23,34.01,30.17,41.68,78,2653,299,598,2.0,Neutral,Yes,,,,,
+2026-10-27,NUE,XLB,ATH Breakout,28,272.26,248.29,320.19,12,3267,288,575,2.0,Neutral,Yes,,,,,
+2026-10-27,CCL,XLY,Squeeze Breakout,27,27.88,25.52,32.59,127,3541,299,598,2.0,Neutral,Yes,,,,,
