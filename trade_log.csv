@@ -593,3 +593,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-10-27,TDY,XLK,EMA20 Pullback,26,654.99,607.88,749.2,6,3930,283,565,2.0,Neutral,Yes,,,,,
 2026-10-27,PG,XLP,EMA20 Pullback,26,159.2,151.23,175.15,28,4458,223,446,2.0,Neutral,Yes,,,,,
 2026-10-28,JNJ,XLV,EMA20 Pullback,26,268.05,250.37,303.41,16,4289,283,566,2.0,Neutral,Yes,,,,,
+2026-10-28,BLK,XLF,EMA20 Pullback,27,1153.19,1072.22,1315.11,3,3460,243,486,2.0,Neutral,Yes,,,,,
