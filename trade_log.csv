@@ -596,3 +596,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-10-28,BLK,XLF,EMA20 Pullback,27,1153.19,1072.22,1315.11,3,3460,243,486,2.0,Neutral,Yes,,,,,
 2026-10-28,PPG,XLB,Volume Breakout,26,118.44,109.06,137.2,31,3672,291,582,2.0,Neutral,Yes,,,,,
 2026-10-29,DLTR,XLP,Trend Continuation,27,130.55,119.62,152.41,27,3525,295,590,2.0,Neutral,No,,,,,
+2026-10-29,BBY,XLY,ATH Breakout,26,99.32,90.96,116.03,35,3476,292,585,2.0,Neutral,Yes,,,,,
