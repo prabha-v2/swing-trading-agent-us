@@ -564,7 +564,7 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-10-15,PAG,OTHER,EMA20 Pullback,26,212.0,197.14,241.72,20,4240,297,594,2.0,Neutral,No,,,,,
 2026-10-16,APA,XLE,ATH Breakout,23,47.88,43.48,56.67,68,3256,299,598,2.0,Neutral,Yes,,,,,
 2026-10-16,CRM,XLK,EMA20 Pullback,25,246.8,223.23,293.94,12,2962,283,566,2.0,Neutral,Yes,STOPPED,2026-11-03,222.4,-292.8,-9.89
-2026-10-16,AMCR,XLB,Squeeze Breakout,28,44.27,41.78,49.25,101,4471,252,503,2.0,Neutral,Yes,,,,,
+2026-10-16,AMCR,XLB,Squeeze Breakout,28,44.27,41.78,49.25,101,4471,252,503,2.0,Neutral,Yes,TARGET HIT,2026-11-04,49.25,502.98,11.25
 2026-10-16,APLE,OTHER,ATH Breakout,29,17.38,16.36,19.42,258,4484,264,527,2.0,Neutral,Yes,,,,,
 2026-10-16,AAPL,XLK,EMA20 Pullback,27,344.9,328.45,377.8,13,4484,214,428,2.0,Neutral,Yes,STOPPED,2026-11-03,325.54,-251.68,-5.61
 2026-10-19,AIG,XLF,Trend Continuation,26,81.1,77.2,88.91,55,4460,215,429,2.0,Neutral,Yes,,,,,
@@ -601,3 +601,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-11-04,WMT,XLP,Trend Continuation,27,127.08,119.5,142.24,35,4448,265,531,2.0,Neutral,Yes,,,,,
 2026-11-04,DOW,XLB,EMA20 Pullback,24,33.57,30.42,39.87,95,3189,299,598,2.0,Neutral,No,,,,,
 2026-11-04,V,XLF,ATH Breakout,27,426.98,404.01,472.91,10,4270,230,459,2.0,Neutral,Yes,,,,,
+2026-11-04,AZO,XLY,Trend Continuation,27,3323.07,3084.65,3799.93,1,3323,238,477,2.0,Neutral,Yes,,,,,
