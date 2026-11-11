@@ -602,3 +602,8 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-11-04,DOW,XLB,EMA20 Pullback,24,33.57,30.42,39.87,95,3189,299,598,2.0,Neutral,No,STOPPED,2026-11-10,30.39,-302.1,-9.47
 2026-11-04,V,XLF,ATH Breakout,27,426.98,404.01,472.91,10,4270,230,459,2.0,Neutral,Yes,,,,,
 2026-11-04,AZO,XLY,Trend Continuation,27,3323.07,3084.65,3799.93,1,3323,238,477,2.0,Neutral,Yes,,,,,
+2026-11-11,LNT,XLU,EMA20 Pullback,27,73.19,69.43,80.71,61,4465,229,459,2.0,Neutral,Yes,,,,,
+2026-11-11,LH,XLV,ATH Breakout,24,370.24,340.38,429.98,10,3702,299,597,2.0,Neutral,No,,,,,
+2026-11-11,ALLE,XLI,ATH Breakout,25,190.74,178.94,214.34,23,4387,271,543,2.0,Neutral,Yes,,,,,
+2026-11-11,AFL,XLF,EMA20 Pullback,27,126.48,120.47,138.51,35,4427,210,421,2.0,Neutral,Yes,,,,,
+2026-11-11,ROIV,XBI,ATH Breakout,26,42.18,37.56,51.42,64,2700,296,591,2.0,Neutral,Yes,,,,,
