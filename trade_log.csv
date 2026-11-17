@@ -606,4 +606,4 @@ date,symbol,sector,setup,score,entry,stop,target,size,invested,risk_usd,reward_u
 2026-11-11,LH,XLV,ATH Breakout,24,370.24,340.38,429.98,10,3702,299,597,2.0,Neutral,No,,,,,
 2026-11-11,ALLE,XLI,ATH Breakout,25,190.74,178.94,214.34,23,4387,271,543,2.0,Neutral,Yes,,,,,
 2026-11-11,AFL,XLF,EMA20 Pullback,27,126.48,120.47,138.51,35,4427,210,421,2.0,Neutral,Yes,,,,,
-2026-11-11,ROIV,XBI,ATH Breakout,26,42.18,37.56,51.42,64,2700,296,591,2.0,Neutral,Yes,,,,,
+2026-11-11,ROIV,XBI,ATH Breakout,26,42.18,37.56,51.42,64,2700,296,591,2.0,Neutral,Yes,STOPPED,2026-11-17,37.56,-295.68,-10.95
